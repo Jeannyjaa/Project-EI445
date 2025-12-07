@@ -557,3 +557,34 @@ body {
         align-items: flex-start;
     }
 }
+
+/* --- Warning Level Color Box --- */
+#warning-status-box {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 15px;
+    font-weight: 500;
+    box-shadow: var(--shadow);
+}
+
+/* วิกฤต / สูง */
+.warn-red {
+    background: #FFE5E5;
+    border: 1px solid #FF5252;
+    color: #FF5252;
+}
+
+/* เตือน */
+.warn-yellow {
+    background: #FFF9E0;
+    border: 1px solid #FFC107;
+    color: #C28A00;
+}
+
+/* ปกติ */
+.warn-green {
+    background: #E8F5E9;
+    border: 1px solid #27AE60;
+    color: #27AE60;
+}
