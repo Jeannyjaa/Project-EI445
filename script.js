@@ -1,15 +1,18 @@
-// --- CONFIGURATION: Google Sheets 3 ลิงก์ ---
-// 1) test:  1uY2EGP7UkzMKTlhFr4vlO70ovk3yCpv4Rbo3SA7UJFk (ยังไม่ใช้)
-// 2) dataset2 (usage log หลัก): 1QF7MeuGdKgdr9J0coQa5e_PWARxItijf44FN8vcCoM4
-// 3) dataset1 (profile/amount_paid): 1nklvlk-u0thbcZUtJ0HuExlx1kBdAME9CdjjMHzvaf0
+// --- CONFIGURATION: Google Sheet เดียว ---
+//  test:  1uY2EGP7UkzMKTlhFr4vlO70ovk3yCpv4Rbo3SA7UJFk
+//  คอลัมน์ที่ workflow เขียนลง: 
+//  timestamp, room_number, kWh_reading, kWh_usage, cost_baht,
+//  power_kw, power_watts, level, amount_paid
 
-const SHEETS = {
-  usage:   { id: "1QF7MeuGdKgdr9J0coQa5e_PWARxItijf44FN8vcCoM4", gid: "0" }, // dataset2
-  profile: { id: "1nklvlk-u0thbcZUtJ0HuExlx1kBdAME9CdjjMHzvaf0", gid: "0" }, // dataset1
+const SHEET = {
+  id: "1uY2EGP7UkzMKTlhFr4vlO70ovk3yCpv4Rbo3SA7UJFk",
+  gid: "0",
 };
 
-let BUDGET_LIMIT = 1500; // ยังใช้เป็นงบ fix ถ้าอยากให้ดึงจากชีตทีหลังค่อยปรับได้
+// งบประมาณค่าไฟ (บาท) – fix ไว้ก่อน
+let BUDGET_LIMIT = 1500;
 
+// โหลดเมื่อ DOM พร้อม
 document.addEventListener("DOMContentLoaded", async () => {
   // ตั้งฟอนต์และสีเริ่มต้นของ Chart.js
   if (window.Chart) {
@@ -22,11 +25,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const hasWarningChart = document.getElementById("warningChart");
   const hasPieChart     = document.getElementById("pieChart");
 
-  // ถ้าหน้านี้ไม่มี element ไหนเลย ก็ไม่ต้องโหลดอะไร
+  // ถ้าไม่มี element ที่ต้องใช้เลย ก็ไม่ต้องดึงข้อมูล
   if (!hasDashboard && !hasUsageChart && !hasWarningChart && !hasPieChart) return;
 
   try {
-    const data = await fetchDataFromSheets(); // <--- ใช้ Google Sheet
+    const data = await fetchDataFromSheets(); // ดึงจาก Google Sheet เดียว
 
     if (hasDashboard)    renderDashboard(data);
     if (hasUsageChart)   renderUsagePage(data);
@@ -45,7 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ดึงข้อมูลจาก Google Sheets (ผ่าน gviz JSON)
 // -------------------------------------------------
 
-// helper แปลงชื่อคอลัมน์ให้ normalize
+// helper แปลงชื่อคอลัมน์ให้ normalize เช่น "Power Watts" → "powerwatts"
 function normalizeLabel(label) {
   return (label || "")
     .toString()
@@ -67,82 +70,11 @@ async function fetchSheetTable(id, gid = "0") {
 
   const text = await res.text();
 
-  // ตัด wrapper google.visualization.Query.setResponse(...)
+  // ตัด wrapper google.visualization.Query.setResponse(... )
   const jsonStr = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const obj = JSON.parse(jsonStr);
 
   return obj.table; // { cols, rows }
-}
-
-// แปลง dataset2 → array ของ usage log ตามฟิลด์ที่ script เดิมใช้
-function parseUsageFromDataset2(table) {
-  const rawCols = table.cols.map((c) => c.label || "");
-  const cols = rawCols.map((label) => normalizeLabel(label));
-
-  // พยายามหา index ของแต่ละ field แบบยืดหยุ่น
-  let idxTimestamp = cols.findIndex(
-    (l) => l === "timestamp" || l === "time" || l.startsWith("datetime")
-  );
-  let idxRoom = cols.findIndex(
-    (l) => l === "room_number" || l === "roomnumber" || l === "room"
-  );
-  let idxPowerWatts = cols.findIndex(
-    (l) => l === "power_watts" || l === "powerwatts" || l === "power" || l === "watt"
-  );
-  let idxKwhUsage = cols.findIndex(
-    (l) => l === "kwh_usage" || l === "kwhusage" || l === "kwh"
-  );
-  let idxCostBaht = cols.findIndex(
-    (l) => l === "cost_baht" || l === "costbaht" || l === "cost" || l === "bill"
-  );
-
-  // ถ้าหาไม่เจอเลย ลอง fallback เป็นตำแหน่งคอลัมน์ตามลำดับ
-  if (idxTimestamp === -1) idxTimestamp = 0;
-  if (idxRoom === -1 && rawCols.length > 1) idxRoom = 1;
-  if (idxPowerWatts === -1 && rawCols.length > 2) idxPowerWatts = 2;
-  if (idxKwhUsage === -1 && rawCols.length > 3) idxKwhUsage = 3;
-  if (idxCostBaht === -1 && rawCols.length > 4) idxCostBaht = 4;
-
-  return table.rows
-    .filter((r) => r.c && r.c[idxTimestamp] && r.c[idxTimestamp].v != null)
-    .map((r) => {
-      const c = r.c;
-
-      const tsRaw    = c[idxTimestamp]  ? c[idxTimestamp].v  : "";
-      const roomRaw  = c[idxRoom]       ? c[idxRoom].v       : "";
-      const powerRaw = c[idxPowerWatts] ? c[idxPowerWatts].v : 0;
-      const kwhRaw   = c[idxKwhUsage]   ? c[idxKwhUsage].v   : 0;
-      const costRaw  = c[idxCostBaht]   ? c[idxCostBaht].v   : 0;
-
-      const room     = roomRaw == null ? "" : roomRaw;
-      const powerNum = Number(powerRaw) || 0;
-      const kwhNum   = Number(kwhRaw)   || 0;
-      const costNum  = Number(costRaw)  || 0;
-
-      return {
-        timestamp:   tsRaw,
-        room_number: room,
-        power_watts: powerNum,
-        kwh_usage:   kwhNum,
-        cost_baht:   costNum,
-      };
-    });
-}
-
-// แปลง dataset1 → profile array (เก็บไว้เผื่อใช้ต่อ)
-function parseProfileTable(table) {
-  const cols = table.cols.map((c) => (c.label || "").trim());
-
-  return table.rows
-    .filter((r) => r.c && r.c.some((cell) => cell && cell.v != null))
-    .map((r) => {
-      const obj = {};
-      r.c.forEach((cell, idx) => {
-        const key = cols[idx] || `col_${idx}`;
-        obj[key] = cell ? cell.v : null;
-      });
-      return obj;
-    });
 }
 
 // helper แปลง timestamp string/Date(..) → Date object ให้ชัวร์
@@ -168,20 +100,64 @@ function toDate(value) {
   return new Date(); // fallback ปัจจุบัน
 }
 
-// ดึง usage + profile จาก 2 ชีต
-async function fetchDataFromSheets() {
-  const [usageTable, profileTable] = await Promise.all([
-    fetchSheetTable(SHEETS.usage.id, SHEETS.usage.gid),
-    fetchSheetTable(SHEETS.profile.id, SHEETS.profile.gid),
-  ]);
+// แปลงข้อมูลจากชีทหลัก (test) → usage + level + amount_paid
+function parseMainSheet(table) {
+  const colsNorm = table.cols.map((c) => normalizeLabel(c.label || ""));
 
-  const usage   = parseUsageFromDataset2(usageTable);
-  const profile = parseProfileTable(profileTable);
+  const idxTimestamp = colsNorm.indexOf("timestamp");
+  const idxRoom      = colsNorm.indexOf("room_number");
+  const idxKwhUsage  = colsNorm.indexOf("kwh_usage");
+  const idxCost      = colsNorm.indexOf("cost_baht");
+  const idxPowerW    = colsNorm.indexOf("power_watts");
+  const idxLevel     = colsNorm.indexOf("level");
+  const idxPaid      = colsNorm.indexOf("amount_paid");
+
+  const usage = [];
+  let latestLevel = null;
+  let latestPaid  = 0;
+
+  table.rows.forEach((r) => {
+    if (!r.c) return;
+    const c = r.c;
+
+    const ts   = idxTimestamp >= 0 && c[idxTimestamp] ? c[idxTimestamp].v : "";
+    const room = idxRoom      >= 0 && c[idxRoom]      ? c[idxRoom].v      : "";
+    const kwh  = idxKwhUsage  >= 0 && c[idxKwhUsage]  ? c[idxKwhUsage].v  : 0;
+    const cost = idxCost      >= 0 && c[idxCost]      ? c[idxCost].v      : 0;
+    const pw   = idxPowerW    >= 0 && c[idxPowerW]    ? c[idxPowerW].v    : 0;
+
+    const level = idxLevel >= 0 && c[idxLevel] ? c[idxLevel].v : null;
+    const paid  = idxPaid  >= 0 && c[idxPaid]  ? c[idxPaid].v  : 0;
+
+    usage.push({
+      timestamp:   ts,
+      room_number: room,
+      power_watts: Number(pw)   || 0,
+      kwh_usage:   Number(kwh)  || 0,
+      cost_baht:   Number(cost) || 0,
+    });
+
+    if (level !== null && level !== "") latestLevel = level;
+    const paidNum = Number(paid);
+    if (!isNaN(paidNum)) latestPaid = paidNum;
+  });
+
+  return {
+    usage,
+    level: latestLevel,
+    amount_paid: latestPaid,
+  };
+}
+
+// ดึงข้อมูลจากชีทเดียว
+async function fetchDataFromSheets() {
+  const table = await fetchSheetTable(SHEET.id, SHEET.gid);
+  const parsed = parseMainSheet(table);
 
   // เรียง usage ตามเวลา
-  usage.sort((a, b) => toDate(a.timestamp) - toDate(b.timestamp));
+  parsed.usage.sort((a, b) => toDate(a.timestamp) - toDate(b.timestamp));
 
-  return { usage, profile };
+  return parsed; // { usage, level, amount_paid }
 }
 
 /* -------------------------------------------------
@@ -301,7 +277,7 @@ function renderUsagePage(data) {
   const powerVal = Number(targetLog.power_watts) || 0;
   const costVal  = Number(targetLog.cost_baht)   || 0;
 
-  setText("insight-room", targetLog.room_number || "-");
+  setText("insight-room",  targetLog.room_number || "-");
   setText("insight-power", powerVal.toFixed(0) + " W");
   setText("insight-cost",  costVal.toFixed(2)  + " ฿");
 }
@@ -408,7 +384,11 @@ function renderWarningPage(data) {
     },
   });
 
-  window.userProfile = data.profile;
+  // เผื่ออยากใช้ level / amount_paid ที่อื่นในหน้า Warning
+  window.sheetSummary = {
+    level: data.level,
+    amount_paid: data.amount_paid,
+  };
 }
 
 /* -------------------------------------------------
