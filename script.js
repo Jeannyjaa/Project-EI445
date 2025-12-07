@@ -362,27 +362,27 @@ function renderWarningStatus(levelRaw) {
   };
 
   if (level === "warning") {
-    info = {
-      className: "warn-yellow",
-      title: "ระดับเตือน",
-      bannerDesc: "ค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้",
-      cardDesc: "ระดับเตือน: ค่าไฟเริ่มเข้าใกล้งบ ลองดูแผนลดโหลดในหน้าการคาดการณ์",
-    };
-  } else if (level === "high") {
-    info = {
-      className: "warn-red",
-      title: "ระดับสูง",
-      bannerDesc: "ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว",
-      cardDesc: "ระดับสูง: ค่าไฟเพิ่มขึ้นเร็ว แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-    };
-  } else if (level === "critical") {
-    info = {
-      className: "warn-red",
-      title: "ระดับวิกฤต",
-      bannerDesc: "ค่าไฟเกินงบที่ตั้งไว้ ต้องลดการใช้ทันที",
-      cardDesc: "ระดับวิกฤต: ค่าไฟเกินงบแล้ว ควรเลือกแผน Max เพื่อลดการใช้ไฟทันที",
-    };
-  }
+  info = {
+    className: "warn-yellow",
+    title: "ระดับเตือน",
+    bannerDesc: "ค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้",
+    cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+  };
+} else if (level === "high") {
+  info = {
+    className: "warn-red",
+    title: "ระดับสูง",
+    bannerDesc: "ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว",
+    cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+  };
+} else if (level === "critical") {
+  info = {
+    className: "warn-red",
+    title: "ระดับวิกฤต",
+    bannerDesc: "ค่าไฟเกินงบที่ตั้งไว้ ต้องลดการใช้ทันที",
+    cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+  };
+}
 
   // กล่องเขียว/เหลือง/แดง หน้า index
   const statusCard = document.getElementById("status-card");
