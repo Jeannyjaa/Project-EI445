@@ -45,6 +45,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ดึงข้อมูลจาก Google Sheets (ผ่าน gviz JSON)
 // -------------------------------------------------
 
+// helper แปลงชื่อคอลัมน์ให้ normalize
+function normalizeLabel(label) {
+  return (label || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
 // ดึง table จาก Google Sheet 1 ชีต
 async function fetchSheetTable(id, gid = "0") {
   const url =
@@ -67,28 +76,55 @@ async function fetchSheetTable(id, gid = "0") {
 
 // แปลง dataset2 → array ของ usage log ตามฟิลด์ที่ script เดิมใช้
 function parseUsageFromDataset2(table) {
-  const cols = table.cols.map((c) => (c.label || "").trim());
+  const rawCols = table.cols.map((c) => c.label || "");
+  const cols = rawCols.map((label) => normalizeLabel(label));
 
-  const idxTimestamp  = cols.indexOf("timestamp");
-  const idxRoom       = cols.indexOf("room_number");
-  const idxPowerWatts = cols.indexOf("power_watts");
-  const idxKwhUsage   = cols.indexOf("kWh_usage");
-  const idxCostBaht   = cols.indexOf("cost_baht");
+  // พยายามหา index ของแต่ละ field แบบยืดหยุ่น
+  let idxTimestamp = cols.findIndex(
+    (l) => l === "timestamp" || l === "time" || l.startsWith("datetime")
+  );
+  let idxRoom = cols.findIndex(
+    (l) => l === "room_number" || l === "roomnumber" || l === "room"
+  );
+  let idxPowerWatts = cols.findIndex(
+    (l) => l === "power_watts" || l === "powerwatts" || l === "power" || l === "watt"
+  );
+  let idxKwhUsage = cols.findIndex(
+    (l) => l === "kwh_usage" || l === "kwhusage" || l === "kwh"
+  );
+  let idxCostBaht = cols.findIndex(
+    (l) => l === "cost_baht" || l === "costbaht" || l === "cost" || l === "bill"
+  );
 
-  if (idxTimestamp === -1 || idxKwhUsage === -1 || idxCostBaht === -1) {
-    console.warn("Column mapping for usage not found:", cols);
-  }
+  // ถ้าหาไม่เจอเลย ลอง fallback เป็นตำแหน่งคอลัมน์ตามลำดับ
+  if (idxTimestamp === -1) idxTimestamp = 0;
+  if (idxRoom === -1 && rawCols.length > 1) idxRoom = 1;
+  if (idxPowerWatts === -1 && rawCols.length > 2) idxPowerWatts = 2;
+  if (idxKwhUsage === -1 && rawCols.length > 3) idxKwhUsage = 3;
+  if (idxCostBaht === -1 && rawCols.length > 4) idxCostBaht = 4;
 
   return table.rows
-    .filter((r) => r.c && r.c[idxTimestamp] && r.c[idxTimestamp].v)
+    .filter((r) => r.c && r.c[idxTimestamp] && r.c[idxTimestamp].v != null)
     .map((r) => {
       const c = r.c;
+
+      const tsRaw = c[idxTimestamp] ? c[idxTimestamp].v : "";
+      const roomRaw = c[idxRoom] ? c[idxRoom].v : "";
+      const powerRaw = c[idxPowerWatts] ? c[idxPowerWatts].v : 0;
+      const kwhRaw = c[idxKwhUsage] ? c[idxKwhUsage].v : 0;
+      const costRaw = c[idxCostBaht] ? c[idxCostBaht].v : 0;
+
+      const room = roomRaw == null ? "" : roomRaw;
+      const powerNum = Number(powerRaw) || 0;
+      const kwhNum = Number(kwhRaw) || 0;
+      const costNum = Number(costRaw) || 0;
+
       return {
-        timestamp:   c[idxTimestamp]?.v || "",
-        room_number: c[idxRoom]?.v ?? "",
-        power_watts: Number(c[idxPowerWatts]?.v ?? 0),
-        kwh_usage:   Number(c[idxKwhUsage]?.v ?? 0),
-        cost_baht:   Number(c[idxCostBaht]?.v ?? 0),
+        timestamp: tsRaw, // เก็บ string เดิม new Date() ค่อยไป parse ทีหลัง
+        room_number: room,
+        power_watts: powerNum,
+        kwh_usage: kwhNum,
+        cost_baht: costNum,
       };
     });
 }
@@ -109,6 +145,24 @@ function parseProfileTable(table) {
     });
 }
 
+// helper แปลง timestamp string/Date(..) → Date object ให้ชัวร์
+function toDate(value) {
+  if (value instanceof Date) return value;
+  if (typeof value === "string") {
+    // case "Date(2024,11,7,10,0,0)"
+    if (value.startsWith("Date(")) {
+      const inside = value.slice(5, -1).split(",");
+      const nums = inside.map((n) => parseInt(n, 10) || 0);
+      // year, month, day, hour, min, sec
+      return new Date(nums[0], nums[1], nums[2], nums[3] || 0, nums[4] || 0, nums[5] || 0);
+    }
+    // ปกติลอง new Date ตรง ๆ
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date(); // fallback ปัจจุบัน
+}
+
 // ดึง usage + profile จาก 2 ชีต
 async function fetchDataFromSheets() {
   const [usageTable, profileTable] = await Promise.all([
@@ -119,8 +173,8 @@ async function fetchDataFromSheets() {
   const usage   = parseUsageFromDataset2(usageTable);
   const profile = parseProfileTable(profileTable);
 
-  // เรียง usage ตามเวลา (กันกรณีลำดับมมั่ว)
-  usage.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  // เรียง usage ตามเวลา (กันกรณีลำดับมั่ว)
+  usage.sort((a, b) => toDate(a.timestamp) - toDate(b.timestamp));
 
   return { usage, profile };
 }
@@ -128,30 +182,28 @@ async function fetchDataFromSheets() {
 /* -------------------------------------------------
  * 1. DASHBOARD (เวอร์ชันไม่สุ่มแล้ว)
  * -------------------------------------------------
- *  - ใช้ข้อมูลทั้งหมดเรียงตามเวลา
- *  - คำนวณ "ค่าไฟสะสมถึงปัจจุบัน" = ผลรวม cost_baht ทั้งหมด
- *  - อัปเดต progress bar และเวลาล่าสุดจากแถวสุดท้าย
  */
 function renderDashboard(data) {
   const usageLog = data.usage;
   if (!usageLog || usageLog.length === 0) return;
 
-  // เผื่อข้อมูลไม่ได้เรียง ให้เรียงตาม timestamp ก่อน (ซ้ำอีกชั้นแบบชัวร์ๆ)
   const sorted = [...usageLog].sort((a, b) => {
-    return new Date(a.timestamp) - new Date(b.timestamp);
+    return toDate(a.timestamp) - toDate(b.timestamp);
   });
 
   // คำนวณค่าไฟสะสมทั้งหมด
   let calculatedBill = 0;
   sorted.forEach((log) => {
-    calculatedBill += parseFloat(log.cost_baht || 0);
+    const v = Number(log.cost_baht) || 0;
+    calculatedBill += v;
   });
 
-  // แสดงยอดเงิน (แอนิเมทจาก 0 → calculatedBill)
+  // แสดงยอดเงิน (ถ้า NaN ให้เป็น 0)
+  if (!isFinite(calculatedBill)) calculatedBill = 0;
   animateValue("display-amount", 0, calculatedBill, 1000);
 
   // อัปเดต Progress Bar
-  const percent = (calculatedBill / BUDGET_LIMIT) * 100;
+  const percent = BUDGET_LIMIT > 0 ? (calculatedBill / BUDGET_LIMIT) * 100 : 0;
   const fillElem = document.getElementById("progress-fill");
   const textElem = document.getElementById("progress-text");
 
@@ -166,7 +218,7 @@ function renderDashboard(data) {
 
   // เวลาล่าสุด = timestamp ของแถวสุดท้าย
   const lastLog = sorted[sorted.length - 1];
-  const dateObj = new Date(lastLog.timestamp);
+  const dateObj = toDate(lastLog.timestamp);
   const dateStr = dateObj.toLocaleDateString("th-TH", {
     day: "numeric",
     month: "short",
@@ -186,24 +238,22 @@ function renderUsagePage(data) {
   const usageLog = data.usage;
   if (!usageLog || usageLog.length === 0) return;
 
-  // เรียงตามเวลา
   const sorted = [...usageLog].sort((a, b) => {
-    return new Date(a.timestamp) - new Date(b.timestamp);
+    return toDate(a.timestamp) - toDate(b.timestamp);
   });
 
-  // ดึง 10 แถวล่าสุด (ถ้าข้อมูลน้อยกว่า 10 ก็ใช้ทั้งหมด)
   const windowSize = 10;
   const start = Math.max(sorted.length - windowSize, 0);
   const lastLogs = sorted.slice(start);
 
   const labels = lastLogs.map((log) => {
-    const d = new Date(log.timestamp);
+    const d = toDate(log.timestamp);
     const hh = d.getHours();
     const mm = d.getMinutes();
     return hh + ":" + (mm < 10 ? "0" + mm : mm);
   });
 
-  const dataPoints = lastLogs.map((log) => parseFloat(log.kwh_usage));
+  const dataPoints = lastLogs.map((log) => Number(log.kwh_usage) || 0);
 
   const ctx = document.getElementById("usageChart");
   if (!ctx || !window.Chart) return;
@@ -247,9 +297,12 @@ function renderUsagePage(data) {
 
   // Insight ใช้ "ข้อมูลล่าสุด" จากช่วง 10 แถวนี้ (ตัวสุดท้าย)
   const lastLog = lastLogs[lastLogs.length - 1];
-  setText("insight-room", lastLog.room_number);
-  setText("insight-power", lastLog.power_watts + " W");
-  setText("insight-cost", parseFloat(lastLog.cost_baht).toFixed(2) + " ฿");
+  setText("insight-room", lastLog.room_number || "-");
+  setText("insight-power", (Number(lastLog.power_watts) || 0) + " W");
+  setText(
+    "insight-cost",
+    (Number(lastLog.cost_baht) || 0).toFixed(2) + " ฿"
+  );
 }
 
 /* -------------------------------------------------
@@ -259,9 +312,8 @@ function renderWarningPage(data) {
   const usageLog = data.usage;
   if (!usageLog || usageLog.length === 0) return;
 
-  // เรียงตามเวลา
   const sorted = [...usageLog].sort((a, b) => {
-    return new Date(a.timestamp) - new Date(b.timestamp);
+    return toDate(a.timestamp) - toDate(b.timestamp);
   });
 
   let cumulativeCost = 0;
@@ -270,11 +322,12 @@ function renderWarningPage(data) {
   const labels = [];
 
   sorted.forEach((log) => {
-    cumulativeCost += parseFloat(log.cost_baht);
+    const v = Number(log.cost_baht) || 0;
+    cumulativeCost += v;
     costData.push(cumulativeCost);
     budgetData.push(BUDGET_LIMIT);
 
-    const d = new Date(log.timestamp);
+    const d = toDate(log.timestamp);
     const dateStr = `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:00`;
     labels.push(dateStr);
   });
@@ -378,8 +431,8 @@ function renderBreakdownPage(data) {
   let nightUsage = 0;
 
   usageLog.forEach((log) => {
-    const hour = new Date(log.timestamp).getHours();
-    const kwh = parseFloat(log.kwh_usage);
+    const hour = toDate(log.timestamp).getHours();
+    const kwh = Number(log.kwh_usage) || 0;
 
     // กลางวัน = 9:00–22:00 (Off-Peak) และนอกนั้นเป็นกลางคืน (Peak)
     if (hour >= 9 && hour < 22) {
@@ -435,12 +488,16 @@ function animateValue(id, start, end, duration) {
   const obj = document.getElementById(id);
   if (!obj) return;
 
+  // กัน NaN
+  const s = Number(start) || 0;
+  const e = Number(end) || 0;
+
   let startTimestamp = null;
 
   const step = (timestamp) => {
     if (!startTimestamp) startTimestamp = timestamp;
     const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-    obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString();
+    obj.innerHTML = Math.floor(progress * (e - s) + s).toLocaleString();
     if (progress < 1) {
       window.requestAnimationFrame(step);
     }
