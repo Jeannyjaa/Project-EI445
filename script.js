@@ -23,28 +23,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const hasWarningChart = document.getElementById("warningChart");
   const hasPieChart     = document.getElementById("pieChart");
 
+  // ถ้าหน้านี้ไม่มีอะไรใช้ data เลยก็ไม่ต้องโหลด
   if (!hasDashboard && !hasUsageChart && !hasWarningChart && !hasPieChart) return;
 
   try {
     const data = await fetchDataFromSheets();
 
-    if (hasDashboard) {
-      renderDashboard(data);
-    }
+    if (hasDashboard)   renderDashboard(data);
+    if (hasUsageChart)  renderUsagePage(data);
+    if (hasWarningChart) renderWarningPage(data);
+    if (hasPieChart)    renderBreakdownPage(data);
 
-    if (hasUsageChart) {
-      renderUsagePage(data);
-    }
-
-    if (hasWarningChart) {
-      renderWarningPage(data);
-    }
-
-    if (hasPieChart) {
-      renderBreakdownPage(data);
-    }
-
-    // ✅ อัปเดตกล่องสถานะ (ทั้ง index + warning page) จาก level ล่าสุดในชีท
+    // กล่องสถานะ (หน้า index + warning) อิง level ล่าสุดจากชีต
     renderWarningStatus(data.level);
 
   } catch (error) {
@@ -66,7 +56,7 @@ function normalizeLabel(label) {
 async function fetchSheetTable(id, gid = "0") {
   const url =
     `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&gid=${gid}&t=` +
-    new Date().getTime();
+    new Date().getTime(); // กัน cache
 
   const res = await fetch(url);
   if (!res.ok) throw new Error("Fetch sheet error: " + res.status);
@@ -149,7 +139,7 @@ async function fetchDataFromSheets() {
 
 
 // -------------------------------------------------
-// Dashboard
+// Dashboard (หน้า index)
 // -------------------------------------------------
 function renderDashboard(data) {
   const usageLog = data.usage;
@@ -187,7 +177,7 @@ function renderDashboard(data) {
 
 
 // -------------------------------------------------
-// USAGE PAGE
+// USAGE PAGE (usage.html)
 // -------------------------------------------------
 function renderUsagePage(data) {
   const usageLog = data.usage;
@@ -202,37 +192,55 @@ function renderUsagePage(data) {
   const values = last10.map((log) => Number(log.kwh_usage) || 0);
 
   const ctx = document.getElementById("usageChart");
-  if (!ctx) return;
-
-  new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "การใช้ไฟ (kWh)",
-        data: values,
-        borderColor: "#333",
-        borderWidth: 2,
-        tension: 0.4,
-        pointRadius: 3,
-        pointBackgroundColor: "#fff",
-        pointBorderColor: "#333",
-      }],
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false } },
-        y: { display: false, beginAtZero: true },
+  if (ctx && window.Chart) {
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "การใช้ไฟ (kWh)",
+          data: values,
+          borderColor: "#333",
+          borderWidth: 2,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: "#fff",
+          pointBorderColor: "#333",
+        }],
       },
-    },
-  });
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { display: false, beginAtZero: true },
+        },
+      },
+    });
+  }
+
+  // ✅ อัปเดต Insight ด้านขวา
+  // เลือก record ล่าสุดที่มี power หรือ cost เป็นเลขจริง
+  const targetLog =
+    [...last10]
+      .reverse()
+      .find((log) => {
+        const p = Number(log.power_watts);
+        const c = Number(log.cost_baht);
+        return (!isNaN(p) && p !== 0) || (!isNaN(c) && c !== 0);
+      }) || last10[last10.length - 1];
+
+  const powerVal = Number(targetLog.power_watts) || 0;
+  const costVal  = Number(targetLog.cost_baht)   || 0;
+
+  setText("insight-room",  targetLog.room_number || "-");
+  setText("insight-power", powerVal.toFixed(0) + " W");
+  setText("insight-cost",  costVal.toFixed(2)  + " ฿");
 }
 
 
 // -------------------------------------------------
-// WARNING PAGE (กราฟคาดการณ์)
+// WARNING PAGE (warning.html) – กราฟเป็นเส้น
 // -------------------------------------------------
 function renderWarningPage(data) {
   const usageLog = data.usage;
@@ -253,7 +261,7 @@ function renderWarningPage(data) {
   });
 
   const canvas = document.getElementById("warningChart");
-  if (!canvas) return;
+  if (!canvas || !window.Chart) return;
   const ctx = canvas.getContext("2d");
 
   new Chart(ctx, {
@@ -267,7 +275,8 @@ function renderWarningPage(data) {
           borderColor: "#FF5252",
           borderWidth: 2,
           tension: 0.4,
-          fill: true,
+          fill: false,        // เส้นล้วน ไม่ต้องไล่สีพื้น
+          pointRadius: 2,
         },
         {
           label: `งบประมาณ (${BUDGET_LIMIT} บ.)`,
@@ -275,6 +284,7 @@ function renderWarningPage(data) {
           borderColor: "#333",
           borderDash: [5, 5],
           borderWidth: 1.5,
+          pointRadius: 0,
         },
       ],
     },
@@ -282,38 +292,50 @@ function renderWarningPage(data) {
       responsive: true,
       interaction: { mode: "index", intersect: false },
       plugins: { legend: { display: true } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true },
+      },
     },
   });
 }
 
 
 // -------------------------------------------------
-// BREAKDOWN PAGE
+// BREAKDOWN PAGE (breakdown.html)
 // -------------------------------------------------
 function renderBreakdownPage(data) {
   const usageLog = data.usage;
   if (!usageLog.length) return;
 
-  let day = 0;
-  let night = 0;
+  let dayUsage = 0;
+  let nightUsage = 0;
 
   usageLog.forEach((log) => {
     const hour = toDate(log.timestamp).getHours();
-    const kwh = Number(log.kwh_usage) || 0;
-    if (hour >= 9 && hour < 22) day += kwh;
-    else night += kwh;
+    const kwh  = Number(log.kwh_usage) || 0;
+    if (hour >= 9 && hour < 22) dayUsage += kwh;
+    else nightUsage += kwh;
   });
 
+  const total = dayUsage + nightUsage;
+  const dayPercent   = total > 0 ? ((dayUsage   / total) * 100).toFixed(0) : 0;
+  const nightPercent = total > 0 ? ((nightUsage / total) * 100).toFixed(0) : 0;
+
+  // ✅ อัปเดตข้อความ legend
+  setText("legend-day",   `กลางวัน ${dayPercent}% (Off-Peak)`);
+  setText("legend-night", `กลางคืน ${nightPercent}% (Peak)`);
+
   const ctx = document.getElementById("pieChart");
-  if (!ctx) return;
+  if (!ctx || !window.Chart) return;
 
   new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: ["กลางวัน", "กลางคืน"],
       datasets: [{
-        data: [day, night],
-        backgroundColor: ["#E0E0E0", "#333"],
+        data: [dayUsage, nightUsage],
+        backgroundColor: ["#E0E0E0", "#333333"],
         borderWidth: 0,
       }],
     },
@@ -332,7 +354,6 @@ function renderBreakdownPage(data) {
 function renderWarningStatus(levelRaw) {
   const level = (levelRaw || "").toLowerCase();
 
-  // ค่า default ถ้าไม่มี level
   let info = {
     className: "warn-green",
     title: "ปกติ",
@@ -363,7 +384,7 @@ function renderWarningStatus(levelRaw) {
     };
   }
 
-  // ✅ กล่องเขียว/เหลือง/แดง หน้า index
+  // กล่องเขียว/เหลือง/แดง หน้า index
   const statusCard = document.getElementById("status-card");
   const statusTitle = document.getElementById("status-title");
   const statusDesc = document.getElementById("status-desc");
@@ -375,7 +396,7 @@ function renderWarningStatus(levelRaw) {
     statusDesc.innerText = info.bannerDesc;
   }
 
-  // ✅ กล่องสถานะเล็กหน้า warning.html
+  // กล่องสถานะเล็กหน้า warning.html
   const warnBox = document.getElementById("warning-status-box");
   const warnText = document.getElementById("warning-level-text");
 
@@ -385,7 +406,7 @@ function renderWarningStatus(levelRaw) {
     warnText.innerText = `${info.title}: ${info.bannerDesc}`;
   }
 
-  // ✅ ปรับข้อความการ์ดแดงในหน้า index
+  // ปรับข้อความการ์ดแดงในหน้า index
   const mainDesc = document.getElementById("main-warning-desc");
   if (mainDesc) {
     mainDesc.innerText = info.cardDesc;
