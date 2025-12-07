@@ -9,12 +9,11 @@ const SHEET = {
   gid: "0",
 };
 
-// งบประมาณค่าไฟ (บาท) – fix ไว้ก่อน
+// งบประมาณค่าไฟ
 let BUDGET_LIMIT = 1500;
 
-// โหลดเมื่อ DOM พร้อม
+// เมื่อโหลดหน้าเสร็จ
 document.addEventListener("DOMContentLoaded", async () => {
-  // ตั้งฟอนต์และสีเริ่มต้นของ Chart.js
   if (window.Chart) {
     Chart.defaults.font.family = "'Prompt', sans-serif";
     Chart.defaults.color = "#888888";
@@ -25,15 +24,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   const hasWarningChart = document.getElementById("warningChart");
   const hasPieChart     = document.getElementById("pieChart");
 
-  // ถ้าไม่มี element ที่ต้องใช้เลย ก็ไม่ต้องดึงข้อมูล
   if (!hasDashboard && !hasUsageChart && !hasWarningChart && !hasPieChart) return;
 
   try {
-    const data = await fetchDataFromSheets(); // ดึงจาก Google Sheet เดียว
+    const data = await fetchDataFromSheets();
 
-    if (hasDashboard)    renderDashboard(data);
+    if (hasDashboard) {
+      renderDashboard(data);
+      renderWarningStatus(data.level);   // ← NEW
+    }
+
     if (hasUsageChart)   renderUsagePage(data);
-    if (hasWarningChart) renderWarningPage(data);
+    if (hasWarningChart) {
+      renderWarningPage(data);
+      renderWarningStatus(data.level);   // ← NEW
+    }
+
     if (hasPieChart)     renderBreakdownPage(data);
   } catch (error) {
     console.error("Error loading data:", error);
@@ -45,62 +51,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
 // -------------------------------------------------
-// ดึงข้อมูลจาก Google Sheets (ผ่าน gviz JSON)
+// ดึงข้อมูลจาก Google Sheets
 // -------------------------------------------------
-
-// helper แปลงชื่อคอลัมน์ให้ normalize เช่น "Power Watts" → "powerwatts"
 function normalizeLabel(label) {
-  return (label || "")
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "");
+  return (label || "").toString().trim().toLowerCase().replace(/\s+/g, "");
 }
 
-// ดึง table จาก Google Sheet 1 ชีต
 async function fetchSheetTable(id, gid = "0") {
   const url =
     `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&gid=${gid}&t=` +
-    new Date().getTime(); // กัน cache หน่อย
+    new Date().getTime();
 
   const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error("Fetch sheet error: " + res.status);
-  }
+  if (!res.ok) throw new Error("Fetch sheet error: " + res.status);
 
   const text = await res.text();
-
-  // ตัด wrapper google.visualization.Query.setResponse(... )
   const jsonStr = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const obj = JSON.parse(jsonStr);
 
-  return obj.table; // { cols, rows }
+  return obj.table;
 }
 
-// helper แปลง timestamp string/Date(..) → Date object ให้ชัวร์
 function toDate(value) {
   if (value instanceof Date) return value;
   if (typeof value === "string") {
-    // case "Date(2024,11,7,10,0,0)"
     if (value.startsWith("Date(")) {
-      const inside = value.slice(5, -1).split(",");
-      const nums = inside.map((n) => parseInt(n, 10) || 0);
-      return new Date(
-        nums[0],
-        nums[1],
-        nums[2],
-        nums[3] || 0,
-        nums[4] || 0,
-        nums[5] || 0
-      );
+      const nums = value.slice(5, -1).split(",").map((n) => parseInt(n) || 0);
+      return new Date(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5]);
     }
     const d = new Date(value);
     if (!isNaN(d.getTime())) return d;
   }
-  return new Date(); // fallback ปัจจุบัน
+  return new Date();
 }
 
-// แปลงข้อมูลจากชีทหลัก (test) → usage + level + amount_paid
 function parseMainSheet(table) {
   const colsNorm = table.cols.map((c) => normalizeLabel(c.label || ""));
 
@@ -138,6 +122,7 @@ function parseMainSheet(table) {
     });
 
     if (level !== null && level !== "") latestLevel = level;
+
     const paidNum = Number(paid);
     if (!isNaN(paidNum)) latestPaid = paidNum;
   });
@@ -149,113 +134,74 @@ function parseMainSheet(table) {
   };
 }
 
-// ดึงข้อมูลจากชีทเดียว
 async function fetchDataFromSheets() {
   const table = await fetchSheetTable(SHEET.id, SHEET.gid);
   const parsed = parseMainSheet(table);
-
-  // เรียง usage ตามเวลา
   parsed.usage.sort((a, b) => toDate(a.timestamp) - toDate(b.timestamp));
-
-  return parsed; // { usage, level, amount_paid }
+  return parsed;
 }
 
-/* -------------------------------------------------
- * 1. DASHBOARD
- * ------------------------------------------------- */
+
+// -------------------------------------------------
+// Dashboard
+// -------------------------------------------------
 function renderDashboard(data) {
   const usageLog = data.usage;
-  if (!usageLog || usageLog.length === 0) return;
+  if (!usageLog.length) return;
 
-  const sorted = [...usageLog].sort((a, b) => {
-    return toDate(a.timestamp) - toDate(b.timestamp);
-  });
+  let total = usageLog.reduce((sum, log) => sum + (Number(log.cost_baht) || 0), 0);
+  animateValue("display-amount", 0, total, 1000);
 
-  // คำนวณค่าไฟสะสมทั้งหมด
-  let calculatedBill = 0;
-  sorted.forEach((log) => {
-    const v = Number(log.cost_baht) || 0;
-    calculatedBill += v;
-  });
+  const percent = (total / BUDGET_LIMIT) * 100;
+  const fill = document.getElementById("progress-fill");
+  const text = document.getElementById("progress-text");
 
-  if (!isFinite(calculatedBill)) calculatedBill = 0;
-  animateValue("display-amount", 0, calculatedBill, 1000);
-
-  const percent = BUDGET_LIMIT > 0 ? (calculatedBill / BUDGET_LIMIT) * 100 : 0;
-  const fillElem = document.getElementById("progress-fill");
-  const textElem = document.getElementById("progress-text");
-
-  if (fillElem) {
-    fillElem.style.width = `${Math.min(percent, 100)}%`;
-    fillElem.style.backgroundColor = percent > 80 ? "#FF5252" : "#333333";
+  if (fill) {
+    fill.style.width = `${Math.min(percent, 100)}%`;
+    fill.style.backgroundColor = percent > 80 ? "#FF5252" : "#333";
   }
 
-  if (textElem) {
-    textElem.innerText = `${Math.floor(calculatedBill)} ฿ จาก ${BUDGET_LIMIT} ฿`;
+  if (text) {
+    text.innerText = `${Math.floor(total)} ฿ จาก ${BUDGET_LIMIT} ฿`;
   }
-
-  const lastLog = sorted[sorted.length - 1];
-  const dateObj = toDate(lastLog.timestamp);
-  const dateStr = dateObj.toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  const updateElem = document.getElementById("last-update");
-  if (updateElem) updateElem.innerText = `อัปเดตล่าสุด: ${dateStr}`;
 }
 
-/* -------------------------------------------------
- * 2. USAGE PAGE (10 แถวล่าสุด + Insight)
- * ------------------------------------------------- */
+
+// -------------------------------------------------
+// USAGE PAGE
+// -------------------------------------------------
 function renderUsagePage(data) {
   const usageLog = data.usage;
-  if (!usageLog || usageLog.length === 0) return;
+  if (!usageLog.length) return;
 
-  const sorted = [...usageLog].sort((a, b) => {
-    return toDate(a.timestamp) - toDate(b.timestamp);
-  });
-
-  const windowSize = 10;
-  const start = Math.max(sorted.length - windowSize, 0);
-  const lastLogs = sorted.slice(start);
-
-  // ทำกราฟ
-  const labels = lastLogs.map((log) => {
+  const last10 = usageLog.slice(-10);
+  const labels = last10.map((log) => {
     const d = toDate(log.timestamp);
-    const hh = d.getHours();
-    const mm = d.getMinutes();
-    return hh + ":" + (mm < 10 ? "0" + mm : mm);
+    return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
   });
 
-  const dataPoints = lastLogs.map((log) => Number(log.kwh_usage) || 0);
+  const values = last10.map((log) => Number(log.kwh_usage) || 0);
 
   const ctx = document.getElementById("usageChart");
-  if (!ctx || !window.Chart) return;
+  if (!ctx) return;
 
   new Chart(ctx, {
     type: "line",
     data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "การใช้ไฟ (kWh)",
-          data: dataPoints,
-          borderColor: "#333333",
-          borderWidth: 2,
-          tension: 0.4,
-          pointRadius: 3,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "#333333",
-        },
-      ],
+      labels,
+      datasets: [{
+        label: "การใช้ไฟ (kWh)",
+        data: values,
+        borderColor: "#333",
+        borderWidth: 2,
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: "#fff",
+        pointBorderColor: "#333",
+      }],
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false } },
@@ -263,190 +209,151 @@ function renderUsagePage(data) {
       },
     },
   });
-
-  // เลือก record ล่าสุดที่มี power หรือ cost เป็นเลขจริง
-  const targetLog =
-    [...lastLogs]
-      .reverse()
-      .find((log) => {
-        const p = Number(log.power_watts);
-        const c = Number(log.cost_baht);
-        return (!isNaN(p) && p !== 0) || (!isNaN(c) && c !== 0);
-      }) || lastLogs[lastLogs.length - 1];
-
-  const powerVal = Number(targetLog.power_watts) || 0;
-  const costVal  = Number(targetLog.cost_baht)   || 0;
-
-  setText("insight-room",  targetLog.room_number || "-");
-  setText("insight-power", powerVal.toFixed(0) + " W");
-  setText("insight-cost",  costVal.toFixed(2)  + " ฿");
 }
 
-/* -------------------------------------------------
- * 3. WARNING PAGE
- * ------------------------------------------------- */
+
+// -------------------------------------------------
+// WARNING PAGE (กราฟคาดการณ์)
+// -------------------------------------------------
 function renderWarningPage(data) {
   const usageLog = data.usage;
-  if (!usageLog || usageLog.length === 0) return;
+  if (!usageLog.length) return;
 
-  const sorted = [...usageLog].sort((a, b) => {
-    return toDate(a.timestamp) - toDate(b.timestamp);
-  });
-
-  let cumulativeCost = 0;
+  let cumulative = 0;
   const costData = [];
   const budgetData = [];
   const labels = [];
 
-  sorted.forEach((log) => {
-    const v = Number(log.cost_baht) || 0;
-    cumulativeCost += v;
-    costData.push(cumulativeCost);
+  usageLog.forEach((log) => {
+    cumulative += Number(log.cost_baht) || 0;
+    costData.push(cumulative);
     budgetData.push(BUDGET_LIMIT);
 
     const d = toDate(log.timestamp);
-    const dateStr = `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:00`;
-    labels.push(dateStr);
+    labels.push(`${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:00`);
   });
 
   const canvas = document.getElementById("warningChart");
-  if (!canvas || !window.Chart) return;
-
+  if (!canvas) return;
   const ctx = canvas.getContext("2d");
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-  gradient.addColorStop(0, "rgba(255, 82, 82, 0.6)");
-  gradient.addColorStop(1, "rgba(255, 82, 82, 0.0)");
 
   new Chart(ctx, {
     type: "line",
     data: {
-      labels: labels,
+      labels,
       datasets: [
         {
           label: "ค่าไฟสะสมจริง",
           data: costData,
           borderColor: "#FF5252",
-          backgroundColor: gradient,
           borderWidth: 2,
           tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
           fill: true,
-          order: 1,
         },
         {
           label: `งบประมาณ (${BUDGET_LIMIT} บ.)`,
           data: budgetData,
-          borderColor: "#333333",
-          borderWidth: 1.5,
+          borderColor: "#333",
           borderDash: [5, 5],
-          pointRadius: 0,
-          fill: false,
-          order: 2,
+          borderWidth: 1.5,
         },
       ],
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false,
-      },
-      plugins: {
-        legend: {
-          display: true,
-          labels: { usePointStyle: true, boxWidth: 8 },
-        },
-        tooltip: {
-          callbacks: {
-            label: (context) =>
-              context.dataset.label +
-              ": " +
-              Math.floor(context.raw) +
-              " บาท",
-          },
-        },
-      },
-      scales: {
-        x: {
-          display: true,
-          grid: { display: false },
-          ticks: { maxTicksLimit: 6, maxRotation: 0 },
-        },
-        y: {
-          display: true,
-          beginAtZero: true,
-          grid: { color: "#f5f5f5" },
-        },
-      },
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: true } },
     },
   });
-
-  // เผื่ออยากใช้ level / amount_paid ที่อื่นในหน้า Warning
-  window.sheetSummary = {
-    level: data.level,
-    amount_paid: data.amount_paid,
-  };
 }
 
-/* -------------------------------------------------
- * 4. BREAKDOWN PAGE (แบ่งกลางวัน/กลางคืน)
- * ------------------------------------------------- */
+
+// -------------------------------------------------
+// BREAKDOWN PAGE
+// -------------------------------------------------
 function renderBreakdownPage(data) {
   const usageLog = data.usage;
-  if (!usageLog || usageLog.length === 0) return;
+  if (!usageLog.length) return;
 
-  let dayUsage = 0;
-  let nightUsage = 0;
+  let day = 0;
+  let night = 0;
 
   usageLog.forEach((log) => {
     const hour = toDate(log.timestamp).getHours();
-    const kwh  = Number(log.kwh_usage) || 0;
-
-    if (hour >= 9 && hour < 22) {
-      dayUsage += kwh;
-    } else {
-      nightUsage += kwh;
-    }
+    const kwh = Number(log.kwh_usage) || 0;
+    if (hour >= 9 && hour < 22) day += kwh;
+    else night += kwh;
   });
 
-  const total = dayUsage + nightUsage;
-  const dayPercent   = total > 0 ? ((dayUsage   / total) * 100).toFixed(0) : 0;
-  const nightPercent = total > 0 ? ((nightUsage / total) * 100).toFixed(0) : 0;
-
-  setText("legend-day",   `กลางวัน ${dayPercent}% (Off-Peak)`);
-  setText("legend-night", `กลางคืน ${nightPercent}% (Peak)`);
-
   const ctx = document.getElementById("pieChart");
-  if (!ctx || !window.Chart) return;
+  if (!ctx) return;
 
   new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: ["กลางวัน", "กลางคืน"],
-      datasets: [
-        {
-          data: [dayUsage, nightUsage],
-          backgroundColor: ["#E0E0E0", "#333333"],
-          borderWidth: 0,
-          hoverOffset: 4,
-        },
-      ],
+      datasets: [{
+        data: [day, night],
+        backgroundColor: ["#E0E0E0", "#333"],
+        borderWidth: 0,
+      }],
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
       cutout: "70%",
       plugins: { legend: { display: false } },
     },
   });
 }
 
-/* -------------------------------------------------
- * HELPER FUNCTIONS
- * ------------------------------------------------- */
+
+// -------------------------------------------------
+// WARNING STATUS BOX (อิงจาก level ในชีท)
+// -------------------------------------------------
+function renderWarningStatus(level) {
+  const box = document.getElementById("warning-status-box");
+  const text = document.getElementById("warning-level-text");
+
+  if (!box || !text) return;
+
+  box.classList.remove("hidden", "warn-red", "warn-yellow", "warn-green");
+
+  let msg = "";
+
+  switch ((level || "").toLowerCase()) {
+    case "critical":
+      msg = "ระดับวิกฤต: ค่าไฟสูงผิดปกติ ต้องลดการใช้ทันที";
+      box.classList.add("warn-red");
+      break;
+
+    case "high":
+      msg = "ระดับสูง: ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว";
+      box.classList.add("warn-red");
+      break;
+
+    case "warning":
+      msg = "ระดับเตือน: ค่าไฟเริ่มเกินเกณฑ์ปกติ";
+      box.classList.add("warn-yellow");
+      break;
+
+    case "normal":
+      msg = "ปกติ: การใช้ไฟอยู่ในเกณฑ์เหมาะสม";
+      box.classList.add("warn-green");
+      break;
+
+    default:
+      msg = "ยังไม่มีข้อมูลระดับเตือน";
+      box.classList.add("warn-green");
+      break;
+  }
+
+  text.innerText = msg;
+}
+
+
+// -------------------------------------------------
+// Helper
+// -------------------------------------------------
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.innerText = text;
@@ -456,72 +363,64 @@ function animateValue(id, start, end, duration) {
   const obj = document.getElementById(id);
   if (!obj) return;
 
-  const s = Number(start) || 0;
-  const e = Number(end)   || 0;
-
+  const s = Number(start);
+  const e = Number(end);
   let startTimestamp = null;
 
   const step = (timestamp) => {
     if (!startTimestamp) startTimestamp = timestamp;
     const progress = Math.min((timestamp - startTimestamp) / duration, 1);
     obj.innerHTML = Math.floor(progress * (e - s) + s).toLocaleString();
-    if (progress < 1) window.requestAnimationFrame(step);
+    if (progress < 1) requestAnimationFrame(step);
   };
 
-  window.requestAnimationFrame(step);
+  requestAnimationFrame(step);
 }
 
-/* -------------------------------------------------
- * INTERACTION (เลือกแผนลดค่าไฟ)
- * ------------------------------------------------- */
-function showPlanList() {
-  const startStep     = document.getElementById("step-start");
-  const selectionStep = document.getElementById("step-selection");
 
-  if (startStep) startStep.style.display = "none";
-  if (selectionStep) {
-    selectionStep.classList.remove("hidden");
-    selectionStep.classList.add("fade-in");
-  }
+// -------------------------------------------------
+// Interaction
+// -------------------------------------------------
+function showPlanList() {
+  document.getElementById("step-start").style.display = "none";
+
+  const selection = document.getElementById("step-selection");
+  selection.classList.remove("hidden");
+  selection.classList.add("fade-in");
 }
 
 function showPlanDetail(planType) {
-  const resultSection = document.getElementById("step-result");
-  const title         = document.getElementById("result-title");
-  const desc          = document.getElementById("result-desc");
-  const amount        = document.getElementById("result-amount");
+  const title  = document.getElementById("result-title");
+  const desc   = document.getElementById("result-desc");
+  const amount = document.getElementById("result-amount");
+  const result = document.getElementById("step-result");
 
   const plans = {
     lite: {
       title: "แผน Lite (เริ่มต้น)",
-      desc:  "เน้นการปิดไฟและถอดปลั๊กเมื่อไม่ใช้งาน ไม่กระทบชีวิตประจำวันมากนัก",
-      amount:"50 - 80 บาท",
+      desc:  "เน้นการปิดไฟและถอดปลั๊กเมื่อไม่ใช้งาน",
+      amount: "50 - 80 บาท",
     },
     balance: {
       title: "แผน Balance (แนะนำ)",
-      desc:  "ปรับอุณหภูมิแอร์เป็น 26°C และหลีกเลี่ยงการใช้ไฟช่วง Peak (13:00-15:00)",
-      amount:"150 - 200 บาท",
+      desc:  "ปรับแอร์ 26°C และหลีกเลี่ยงการใช้ไฟช่วง Peak",
+      amount: "150 - 200 บาท",
     },
     max: {
       title: "แผน Max (ประหยัดสูงสุด)",
-      desc:  "งดใช้เครื่องทำน้ำอุ่น เครื่องอบผ้า และเปิดแอร์เฉพาะห้องนอนตอนกลางคืนเท่านั้น",
-      amount:"300+ บาท",
+      desc:  "งดใช้เครื่องใช้ไฟฟ้าหนักทั้งหมด",
+      amount: "300+ บาท",
     },
   };
 
-  const plan = plans[planType];
-  if (!plan) return;
+  title.innerText = plans[planType].title;
+  desc.innerText = plans[planType].desc;
+  amount.innerText = plans[planType].amount;
 
-  if (title)  title.innerText  = plan.title;
-  if (desc)   desc.innerText   = plan.desc;
-  if (amount) amount.innerText = plan.amount;
+  result.classList.remove("hidden");
+  result.classList.add("fade-in");
 
-  if (resultSection) {
-    resultSection.classList.remove("hidden");
-    resultSection.classList.add("fade-in");
-
-    if (window.innerWidth < 768) {
-      resultSection.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
+  if (window.innerWidth < 768) {
+    result.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 }
