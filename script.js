@@ -239,7 +239,7 @@ function renderUsagePage(data) {
 
 
 // -------------------------------------------------
-// WARNING PAGE (warning.html) – กราฟเส้นล้วน ไม่มีจุด
+// WARNING PAGE (warning.html) – เส้นแดง + พื้นไล่สีแบบตัวอย่าง
 // -------------------------------------------------
 function renderWarningPage(data) {
   const usageLog = data.usage;
@@ -263,6 +263,11 @@ function renderWarningPage(data) {
   if (!canvas || !window.Chart) return;
   const ctx = canvas.getContext("2d");
 
+  // 🌈 ทำ gradient ใต้เส้นสีแดง
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "rgba(255, 82, 82, 0.35)"); // ด้านบนแดงจาง
+  gradient.addColorStop(1, "rgba(255, 82, 82, 0.0)");  // ล่างสุดโปร่ง
+
   new Chart(ctx, {
     type: "line",
     data: {
@@ -272,19 +277,21 @@ function renderWarningPage(data) {
           label: "ค่าไฟสะสมจริง",
           data: costData,
           borderColor: "#FF5252",
-          borderWidth: 3,
+          backgroundColor: gradient,
+          borderWidth: 2.5,
           tension: 0.35,
-          fill: false,
-          pointRadius: 0,
+          fill: true,        // ✅ ให้ลงพื้น
+          pointRadius: 0,    // ไม่แสดงจุด
           pointHoverRadius: 0,
           pointHitRadius: 0,
         },
         {
           label: `งบประมาณ (${BUDGET_LIMIT} บ.)`,
           data: budgetData,
-          borderColor: "#333",
+          borderColor: "#333333",
           borderDash: [6, 6],
           borderWidth: 2,
+          fill: false,
           pointRadius: 0,
           pointHoverRadius: 0,
           pointHitRadius: 0,
@@ -294,7 +301,9 @@ function renderWarningPage(data) {
     options: {
       responsive: true,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { display: true } },
+      plugins: {
+        legend: { display: true },
+      },
       elements: {
         point: {
           radius: 0,
@@ -306,12 +315,13 @@ function renderWarningPage(data) {
         x: { grid: { display: false } },
         y: {
           beginAtZero: true,
-          grid: { color: "#eeeeee" },
+          grid: { color: "#EEEEEE" },
         },
       },
     },
   });
 }
+
 
 
 // -------------------------------------------------
