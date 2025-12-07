@@ -264,9 +264,15 @@ function renderWarningPage(data) {
   const ctx = canvas.getContext("2d");
 
   // 🌈 ทำ gradient ใต้เส้นสีแดง
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "rgba(255, 82, 82, 0.35)"); // ด้านบนแดงจาง
-  gradient.addColorStop(1, "rgba(255, 82, 82, 0.0)");  // ล่างสุดโปร่ง
+ const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+gradient.addColorStop(0, "rgba(255, 82, 82, 0.35)");
+gradient.addColorStop(1, "rgba(255, 82, 82, 0.0)");
+
+backgroundColor: gradient,
+fill: true,
+pointRadius: 0,
+pointHoverRadius: 0,
+pointHitRadius: 0,
 
   new Chart(ctx, {
     type: "line",
