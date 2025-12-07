@@ -29,10 +29,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const data = await fetchDataFromSheets();
 
-    if (hasDashboard)   renderDashboard(data);
-    if (hasUsageChart)  renderUsagePage(data);
+    if (hasDashboard)    renderDashboard(data);
+    if (hasUsageChart)   renderUsagePage(data);
     if (hasWarningChart) renderWarningPage(data);
-    if (hasPieChart)    renderBreakdownPage(data);
+    if (hasPieChart)     renderBreakdownPage(data);
 
     // กล่องสถานะ (หน้า index + warning) อิง level ล่าสุดจากชีต
     renderWarningStatus(data.level);
@@ -220,7 +220,6 @@ function renderUsagePage(data) {
   }
 
   // ✅ อัปเดต Insight ด้านขวา
-  // เลือก record ล่าสุดที่มี power หรือ cost เป็นเลขจริง
   const targetLog =
     [...last10]
       .reverse()
@@ -240,7 +239,7 @@ function renderUsagePage(data) {
 
 
 // -------------------------------------------------
-// WARNING PAGE (warning.html) – กราฟเป็นเส้น
+// WARNING PAGE (warning.html) – กราฟเส้นล้วน ไม่มีจุด
 // -------------------------------------------------
 function renderWarningPage(data) {
   const usageLog = data.usage;
@@ -273,18 +272,20 @@ function renderWarningPage(data) {
           label: "ค่าไฟสะสมจริง",
           data: costData,
           borderColor: "#FF5252",
-          borderWidth: 2,
-          tension: 0.4,
-          fill: false,        // เส้นล้วน ไม่ต้องไล่สีพื้น
-          pointRadius: 2,
+          borderWidth: 3,
+          tension: 0.35,
+          fill: false,          // ไม่ลงสีพื้น
+          pointRadius: 0,       // ❌ ไม่แสดงจุด
+          pointHoverRadius: 0,
         },
         {
           label: `งบประมาณ (${BUDGET_LIMIT} บ.)`,
           data: budgetData,
           borderColor: "#333",
-          borderDash: [5, 5],
-          borderWidth: 1.5,
+          borderDash: [6, 6],
+          borderWidth: 2,
           pointRadius: 0,
+          pointHoverRadius: 0,
         },
       ],
     },
@@ -294,7 +295,10 @@ function renderWarningPage(data) {
       plugins: { legend: { display: true } },
       scales: {
         x: { grid: { display: false } },
-        y: { beginAtZero: true },
+        y: {
+          beginAtZero: true,
+          grid: { color: "#eeeeee" },
+        },
       },
     },
   });
@@ -362,27 +366,27 @@ function renderWarningStatus(levelRaw) {
   };
 
   if (level === "warning") {
-  info = {
-    className: "warn-yellow",
-    title: "ระดับเตือน",
-    bannerDesc: "ค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้",
-    cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-  };
-} else if (level === "high") {
-  info = {
-    className: "warn-red",
-    title: "ระดับสูง",
-    bannerDesc: "ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว",
-    cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-  };
-} else if (level === "critical") {
-  info = {
-    className: "warn-red",
-    title: "ระดับวิกฤต",
-    bannerDesc: "ค่าไฟเกินงบที่ตั้งไว้ ต้องลดการใช้ทันที",
-    cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-  };
-}
+    info = {
+      className: "warn-yellow",
+      title: "ระดับเตือน",
+      bannerDesc: "ค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้",
+      cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+    };
+  } else if (level === "high") {
+    info = {
+      className: "warn-red",
+      title: "ระดับสูง",
+      bannerDesc: "ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว",
+      cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+    };
+  } else if (level === "critical") {
+    info = {
+      className: "warn-red",
+      title: "ระดับวิกฤต",
+      bannerDesc: "ค่าไฟเกินงบที่ตั้งไว้ ต้องลดการใช้ทันที",
+      cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+    };
+  }
 
   // กล่องเขียว/เหลือง/แดง หน้า index
   const statusCard = document.getElementById("status-card");
