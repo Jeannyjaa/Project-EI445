@@ -61,4 +61,56 @@
                     <div class="plan-list">
                         <label class="plan-item" onclick="showPlanDetail('lite')">
                             <div class="plan-info">
-                                <span class="plan-name">1. แผน L
+                                <span class="plan-name">1. แผน Lite</span>
+                                <span class="plan-desc">ลดเล็กน้อย (ปิดไฟดวงที่ไม่ใช้)</span>
+                            </div>
+                            <input type="radio" name="plan">
+                            <span class="radio-mark"></span>
+                        </label>
+
+                        <label class="plan-item" onclick="showPlanDetail('balance')">
+                            <div class="plan-info">
+                                <span class="plan-name">2. แผน Balance</span>
+                                <span class="plan-desc">แนะนำ: ปรับแอร์ 26°C</span>
+                            </div>
+                            <input type="radio" name="plan">
+                            <span class="radio-mark"></span>
+                        </label>
+
+                        <label class="plan-item" onclick="showPlanDetail('max')">
+                            <div class="plan-info">
+                                <span class="plan-name">3. แผน Max</span>
+                                <span class="plan-desc">ประหยัดสูงสุด (ปิดเครื่องใช้ไฟฟ้าหนัก)</span>
+                            </div>
+                            <input type="radio" name="plan">
+                            <span class="radio-mark"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div id="step-result" class="hidden">
+                    <div class="result-box">
+                        <div class="result-icon">
+                            <i class="ph ph-check-circle"></i>
+                        </div>
+                        <h3 id="result-title">ชื่อแผน</h3>
+                        <p id="result-desc">รายละเอียดแผน...</p>
+                        <div class="result-saving">
+                            คาดว่าจะลดได้: <span id="result-amount">0 บาท</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- END Action panel -->
+
+        </div> <!-- END split-layout -->
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
