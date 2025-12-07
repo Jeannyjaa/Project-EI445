@@ -125,13 +125,13 @@ function parseMainSheet(table) {
 
   return {
     usage,
-    level: latestLevel,
-    amount_paid: latestPaid,
+    level:         latestLevel,
+    amount_paid:   latestPaid,
   };
 }
 
 async function fetchDataFromSheets() {
-  const table = await fetchSheetTable(SHEET.id, SHEET.gid);
+  const table  = await fetchSheetTable(SHEET.id, SHEET.gid);
   const parsed = parseMainSheet(table);
   parsed.usage.sort((a, b) => toDate(a.timestamp) - toDate(b.timestamp));
   return parsed;
@@ -239,16 +239,16 @@ function renderUsagePage(data) {
 
 
 // -------------------------------------------------
-// WARNING PAGE (warning.html) – เส้นแดง + พื้นไล่สีแบบตัวอย่าง
+// WARNING PAGE (warning.html) – เส้นแดง + พื้นไล่สี
 // -------------------------------------------------
 function renderWarningPage(data) {
   const usageLog = data.usage;
   if (!usageLog.length) return;
 
   let cumulative = 0;
-  const costData = [];
+  const costData   = [];
   const budgetData = [];
-  const labels = [];
+  const labels     = [];
 
   usageLog.forEach((log) => {
     cumulative += Number(log.cost_baht) || 0;
@@ -263,16 +263,10 @@ function renderWarningPage(data) {
   if (!canvas || !window.Chart) return;
   const ctx = canvas.getContext("2d");
 
-  // 🌈 ทำ gradient ใต้เส้นสีแดง
- const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-gradient.addColorStop(0, "rgba(255, 82, 82, 0.35)");
-gradient.addColorStop(1, "rgba(255, 82, 82, 0.0)");
-
-backgroundColor: gradient,
-fill: true,
-pointRadius: 0,
-pointHoverRadius: 0,
-pointHitRadius: 0,
+  // 🌈 gradient ใต้เส้นสีแดง
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "rgba(255, 82, 82, 0.35)"); // บน
+  gradient.addColorStop(1, "rgba(255, 82, 82, 0.0)");  // ล่าง
 
   new Chart(ctx, {
     type: "line",
@@ -286,8 +280,8 @@ pointHitRadius: 0,
           backgroundColor: gradient,
           borderWidth: 2.5,
           tension: 0.35,
-          fill: true,        // ✅ ให้ลงพื้น
-          pointRadius: 0,    // ไม่แสดงจุด
+          fill: true,
+          pointRadius: 0,
           pointHoverRadius: 0,
           pointHitRadius: 0,
         },
@@ -329,7 +323,6 @@ pointHitRadius: 0,
 }
 
 
-
 // -------------------------------------------------
 // BREAKDOWN PAGE (breakdown.html)
 // -------------------------------------------------
@@ -337,7 +330,7 @@ function renderBreakdownPage(data) {
   const usageLog = data.usage;
   if (!usageLog.length) return;
 
-  let dayUsage = 0;
+  let dayUsage   = 0;
   let nightUsage = 0;
 
   usageLog.forEach((log) => {
@@ -475,8 +468,8 @@ function animateValue(id, start, end, duration) {
 // Interaction (แผนลดค่าไฟ)
 // -------------------------------------------------
 function showPlanList() {
-  const start = document.getElementById("step-start");
-  const selection = document.getElementById("step-selection");
+  const start      = document.getElementById("step-start");
+  const selection  = document.getElementById("step-selection");
   if (start) start.style.display = "none";
   if (selection) {
     selection.classList.remove("hidden");
@@ -492,18 +485,18 @@ function showPlanDetail(planType) {
 
   const plans = {
     lite: {
-      title: "แผน Lite (เริ่มต้น)",
-      desc:  "เน้นการปิดไฟและถอดปลั๊กเมื่อไม่ใช้งาน",
+      title:  "แผน Lite (เริ่มต้น)",
+      desc:   "เน้นการปิดไฟและถอดปลั๊กเมื่อไม่ใช้งาน",
       amount: "50 - 80 บาท",
     },
     balance: {
-      title: "แผน Balance (แนะนำ)",
-      desc:  "ปรับแอร์ 26°C และหลีกเลี่ยงการใช้ไฟช่วง Peak",
+      title:  "แผน Balance (แนะนำ)",
+      desc:   "ปรับแอร์ 26°C และหลีกเลี่ยงการใช้ไฟช่วง Peak",
       amount: "150 - 200 บาท",
     },
     max: {
-      title: "แผน Max (ประหยัดสูงสุด)",
-      desc:  "งดใช้เครื่องใช้ไฟฟ้าหนักทั้งหมด",
+      title:  "แผน Max (ประหยัดสูงสุด)",
+      desc:   "งดใช้เครื่องใช้ไฟฟ้าหนักทั้งหมด",
       amount: "300+ บาท",
     },
   };
