@@ -28,21 +28,25 @@
             <h1>การคาดการณ์</h1>
         </header>
 
+        <!-- 🔥 กล่องเตือน (เชื่อมกับ renderWarningDetail ใน script.js) -->
+        <div id="warning-status-box" class="warning-box hidden">
+            <div id="warning-level-text" class="warning-text">กำลังโหลด...</div>
+        </div>
+
         <!-- Layout แบ่งซ้ายขวา -->
         <div class="split-layout">
 
             <!-- ซ้าย: กราฟแนวโน้ม (Real Data) -->
             <div class="card chart-card">
                 <div class="chart-container">
-                    <!-- ใช้กับ renderWarningPage ใน script.js -->
                     <canvas id="warningChart"></canvas>
                 </div>
             </div>
 
-            <!-- ขวา: ส่วนจัดการแผน (Interactive Flow) -->
+            <!-- ขวา: ส่วนจัดการแผน -->
             <div class="action-panel">
 
-                <!-- Step 1: ปุ่มเริ่มต้น -->
+                <!-- Step 1 -->
                 <div id="step-start" class="action-section">
                     <div class="section-title" style="margin-top: 0;">จัดการค่าไฟเกินงบ</div>
                     <button class="main-btn" onclick="showPlanList()">
@@ -50,44 +54,41 @@
                     </button>
                 </div>
 
-                <!-- Step 2: รายการแผน (เริ่มต้นซ่อน) -->
+                <!-- Step 2 -->
                 <div id="step-selection" class="hidden">
                     <div class="section-title" style="margin-top: 0;">เลือกแผนที่ต้องการ</div>
 
                     <div class="plan-list">
-                        <!-- แผน 1 -->
                         <label class="plan-item" onclick="showPlanDetail('lite')">
                             <div class="plan-info">
                                 <span class="plan-name">1. แผน Lite</span>
                                 <span class="plan-desc">ลดเล็กน้อย (ปิดไฟดวงที่ไม่ใช้)</span>
                             </div>
-                            <input type="radio" name="plan" value="1">
+                            <input type="radio" name="plan">
                             <span class="radio-mark"></span>
                         </label>
 
-                        <!-- แผน 2 -->
                         <label class="plan-item" onclick="showPlanDetail('balance')">
                             <div class="plan-info">
                                 <span class="plan-name">2. แผน Balance</span>
                                 <span class="plan-desc">แนะนำ: ปรับแอร์ 26°C</span>
                             </div>
-                            <input type="radio" name="plan" value="2">
+                            <input type="radio" name="plan">
                             <span class="radio-mark"></span>
                         </label>
 
-                        <!-- แผน 3 -->
                         <label class="plan-item" onclick="showPlanDetail('max')">
                             <div class="plan-info">
                                 <span class="plan-name">3. แผน Max</span>
                                 <span class="plan-desc">ประหยัดสูงสุด (ปิดเครื่องใช้ไฟฟ้าหนัก)</span>
                             </div>
-                            <input type="radio" name="plan" value="3">
+                            <input type="radio" name="plan">
                             <span class="radio-mark"></span>
                         </label>
                     </div>
                 </div>
 
-                <!-- Step 3: ผลลัพธ์ (เริ่มต้นซ่อน) -->
+                <!-- Step 3 -->
                 <div id="step-result" class="hidden">
                     <div class="result-box">
                         <div class="result-icon">
@@ -107,7 +108,7 @@
 
     </div>
 
-    <!-- Scripts: โหลด Chart.js ก่อน แล้วค่อย script.js -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
 
