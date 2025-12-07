@@ -353,70 +353,81 @@ function renderBreakdownPage(data) {
 
 
 // -------------------------------------------------
-// WARNING STATUS BOX (อิงจาก level ในชีท)
+// WARNING PAGE (warning.html) – กราฟเส้นล้วน ไม่มีจุด
 // -------------------------------------------------
-function renderWarningStatus(levelRaw) {
-  const level = (levelRaw || "").toLowerCase();
+function renderWarningPage(data) {
+  const usageLog = data.usage;
+  if (!usageLog.length) return;
 
-  let info = {
-    className: "warn-green",
-    title: "ปกติ",
-    bannerDesc: "การใช้ไฟอยู่ในเกณฑ์เหมาะสม",
-    cardDesc: "ค่าไฟอยู่ในเกณฑ์ปกติ สามารถดูรายละเอียดการคาดการณ์เพิ่มเติมได้",
-  };
+  let cumulative = 0;
+  const costData = [];
+  const budgetData = [];
+  const labels = [];
 
-  if (level === "warning") {
-    info = {
-      className: "warn-yellow",
-      title: "ระดับเตือน",
-      bannerDesc: "ค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้",
-      cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-    };
-  } else if (level === "high") {
-    info = {
-      className: "warn-red",
-      title: "ระดับสูง",
-      bannerDesc: "ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว",
-      cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-    };
-  } else if (level === "critical") {
-    info = {
-      className: "warn-red",
-      title: "ระดับวิกฤต",
-      bannerDesc: "ค่าไฟเกินงบที่ตั้งไว้ ต้องลดการใช้ทันที",
-      cardDesc: "แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
-    };
-  }
+  usageLog.forEach((log) => {
+    cumulative += Number(log.cost_baht) || 0;
+    costData.push(cumulative);
+    budgetData.push(BUDGET_LIMIT);
 
-  // กล่องเขียว/เหลือง/แดง หน้า index
-  const statusCard = document.getElementById("status-card");
-  const statusTitle = document.getElementById("status-title");
-  const statusDesc = document.getElementById("status-desc");
+    const d = toDate(log.timestamp);
+    labels.push(`${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:00`);
+  });
 
-  if (statusCard && statusDesc && statusTitle) {
-    statusCard.classList.remove("hidden", "warn-red", "warn-yellow", "warn-green");
-    statusCard.classList.add(info.className);
-    statusTitle.innerText = `${info.title}:`;
-    statusDesc.innerText = info.bannerDesc;
-  }
+  const canvas = document.getElementById("warningChart");
+  if (!canvas || !window.Chart) return;
+  const ctx = canvas.getContext("2d");
 
-  // กล่องสถานะเล็กหน้า warning.html
-  const warnBox = document.getElementById("warning-status-box");
-  const warnText = document.getElementById("warning-level-text");
-
-  if (warnBox && warnText) {
-    warnBox.classList.remove("hidden", "warn-red", "warn-yellow", "warn-green");
-    warnBox.classList.add(info.className);
-    warnText.innerText = `${info.title}: ${info.bannerDesc}`;
-  }
-
-  // ปรับข้อความการ์ดแดงในหน้า index
-  const mainDesc = document.getElementById("main-warning-desc");
-  if (mainDesc) {
-    mainDesc.innerText = info.cardDesc;
-  }
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "ค่าไฟสะสมจริง",
+          data: costData,
+          borderColor: "#FF5252",
+          borderWidth: 3,
+          tension: 0.35,
+          fill: false,
+          // 🔥 ไม่เอาจุด
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          pointHitRadius: 0,
+        },
+        {
+          label: `งบประมาณ (${BUDGET_LIMIT} บ.)`,
+          data: budgetData,
+          borderColor: "#333",
+          borderDash: [6, 6],
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          pointHitRadius: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: true } },
+      // 🔥 เผื่อไว้กันจุดโผล่มาอีก กำหนด global ของ chart นี้เป็น 0 เลย
+      elements: {
+        point: {
+          radius: 0,
+          hoverRadius: 0,
+          hitRadius: 0,
+        },
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          beginAtZero: true,
+          grid: { color: "#eeeeee" },
+        },
+      },
+    },
+  });
 }
-
 
 // -------------------------------------------------
 // Helper
