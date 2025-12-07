@@ -1,8 +1,7 @@
 // --- CONFIGURATION: Google Sheet เดียว ---
 //  test:  1uY2EGP7UkzMKTlhFr4vlO70ovk3yCpv4Rbo3SA7UJFk
-//  คอลัมน์ที่ workflow เขียนลง: 
-//  timestamp, room_number, kWh_reading, kWh_usage, cost_baht,
-//  power_kw, power_watts, level, amount_paid
+//  คอลัมน์: room_number, timestamp, kWh_reading, kWh_usage, cost_baht,
+//           power_kw, power_watts, level, amount_paid
 
 const SHEET = {
   id: "1uY2EGP7UkzMKTlhFr4vlO70ovk3yCpv4Rbo3SA7UJFk",
@@ -31,16 +30,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (hasDashboard) {
       renderDashboard(data);
-      renderWarningStatus(data.level);   // ← NEW
     }
 
-    if (hasUsageChart)   renderUsagePage(data);
+    if (hasUsageChart) {
+      renderUsagePage(data);
+    }
+
     if (hasWarningChart) {
       renderWarningPage(data);
-      renderWarningStatus(data.level);   // ← NEW
     }
 
-    if (hasPieChart)     renderBreakdownPage(data);
+    if (hasPieChart) {
+      renderBreakdownPage(data);
+    }
+
+    // ✅ อัปเดตกล่องสถานะ (ทั้ง index + warning page) จาก level ล่าสุดในชีท
+    renderWarningStatus(data.level);
+
   } catch (error) {
     console.error("Error loading data:", error);
     if (hasDashboard) {
@@ -164,6 +170,19 @@ function renderDashboard(data) {
   if (text) {
     text.innerText = `${Math.floor(total)} ฿ จาก ${BUDGET_LIMIT} ฿`;
   }
+
+  const lastLog = usageLog[usageLog.length - 1];
+  const dateObj = toDate(lastLog.timestamp);
+  const dateStr = dateObj.toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const updateElem = document.getElementById("last-update");
+  if (updateElem) updateElem.innerText = `อัปเดตล่าสุด: ${dateStr}`;
 }
 
 
@@ -310,44 +329,67 @@ function renderBreakdownPage(data) {
 // -------------------------------------------------
 // WARNING STATUS BOX (อิงจาก level ในชีท)
 // -------------------------------------------------
-function renderWarningStatus(level) {
-  const box = document.getElementById("warning-status-box");
-  const text = document.getElementById("warning-level-text");
+function renderWarningStatus(levelRaw) {
+  const level = (levelRaw || "").toLowerCase();
 
-  if (!box || !text) return;
+  // ค่า default ถ้าไม่มี level
+  let info = {
+    className: "warn-green",
+    title: "ปกติ",
+    bannerDesc: "การใช้ไฟอยู่ในเกณฑ์เหมาะสม",
+    cardDesc: "ค่าไฟอยู่ในเกณฑ์ปกติ สามารถดูรายละเอียดการคาดการณ์เพิ่มเติมได้",
+  };
 
-  box.classList.remove("hidden", "warn-red", "warn-yellow", "warn-green");
-
-  let msg = "";
-
-  switch ((level || "").toLowerCase()) {
-    case "critical":
-      msg = "ระดับวิกฤต: ค่าไฟสูงผิดปกติ ต้องลดการใช้ทันที";
-      box.classList.add("warn-red");
-      break;
-
-    case "high":
-      msg = "ระดับสูง: ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว";
-      box.classList.add("warn-red");
-      break;
-
-    case "warning":
-      msg = "ระดับเตือน: ค่าไฟเริ่มเกินเกณฑ์ปกติ";
-      box.classList.add("warn-yellow");
-      break;
-
-    case "normal":
-      msg = "ปกติ: การใช้ไฟอยู่ในเกณฑ์เหมาะสม";
-      box.classList.add("warn-green");
-      break;
-
-    default:
-      msg = "ยังไม่มีข้อมูลระดับเตือน";
-      box.classList.add("warn-green");
-      break;
+  if (level === "warning") {
+    info = {
+      className: "warn-yellow",
+      title: "ระดับเตือน",
+      bannerDesc: "ค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้",
+      cardDesc: "ระดับเตือน: ค่าไฟเริ่มเข้าใกล้งบ ลองดูแผนลดโหลดในหน้าการคาดการณ์",
+    };
+  } else if (level === "high") {
+    info = {
+      className: "warn-red",
+      title: "ระดับสูง",
+      bannerDesc: "ค่าไฟเพิ่มขึ้นอย่างรวดเร็ว",
+      cardDesc: "ระดับสูง: ค่าไฟเพิ่มขึ้นเร็ว แนะนำให้เปิดดูกราฟและเลือกแผนลดค่าไฟ",
+    };
+  } else if (level === "critical") {
+    info = {
+      className: "warn-red",
+      title: "ระดับวิกฤต",
+      bannerDesc: "ค่าไฟเกินงบที่ตั้งไว้ ต้องลดการใช้ทันที",
+      cardDesc: "ระดับวิกฤต: ค่าไฟเกินงบแล้ว ควรเลือกแผน Max เพื่อลดการใช้ไฟทันที",
+    };
   }
 
-  text.innerText = msg;
+  // ✅ กล่องเขียว/เหลือง/แดง หน้า index
+  const statusCard = document.getElementById("status-card");
+  const statusTitle = document.getElementById("status-title");
+  const statusDesc = document.getElementById("status-desc");
+
+  if (statusCard && statusDesc && statusTitle) {
+    statusCard.classList.remove("hidden", "warn-red", "warn-yellow", "warn-green");
+    statusCard.classList.add(info.className);
+    statusTitle.innerText = `${info.title}:`;
+    statusDesc.innerText = info.bannerDesc;
+  }
+
+  // ✅ กล่องสถานะเล็กหน้า warning.html
+  const warnBox = document.getElementById("warning-status-box");
+  const warnText = document.getElementById("warning-level-text");
+
+  if (warnBox && warnText) {
+    warnBox.classList.remove("hidden", "warn-red", "warn-yellow", "warn-green");
+    warnBox.classList.add(info.className);
+    warnText.innerText = `${info.title}: ${info.bannerDesc}`;
+  }
+
+  // ✅ ปรับข้อความการ์ดแดงในหน้า index
+  const mainDesc = document.getElementById("main-warning-desc");
+  if (mainDesc) {
+    mainDesc.innerText = info.cardDesc;
+  }
 }
 
 
@@ -379,14 +421,16 @@ function animateValue(id, start, end, duration) {
 
 
 // -------------------------------------------------
-// Interaction
+// Interaction (แผนลดค่าไฟ)
 // -------------------------------------------------
 function showPlanList() {
-  document.getElementById("step-start").style.display = "none";
-
+  const start = document.getElementById("step-start");
   const selection = document.getElementById("step-selection");
-  selection.classList.remove("hidden");
-  selection.classList.add("fade-in");
+  if (start) start.style.display = "none";
+  if (selection) {
+    selection.classList.remove("hidden");
+    selection.classList.add("fade-in");
+  }
 }
 
 function showPlanDetail(planType) {
@@ -413,46 +457,19 @@ function showPlanDetail(planType) {
     },
   };
 
-  title.innerText = plans[planType].title;
-  desc.innerText = plans[planType].desc;
-  amount.innerText = plans[planType].amount;
+  const p = plans[planType];
+  if (!p) return;
 
-  result.classList.remove("hidden");
-  result.classList.add("fade-in");
+  if (title)  title.innerText  = p.title;
+  if (desc)   desc.innerText   = p.desc;
+  if (amount) amount.innerText = p.amount;
 
-  if (window.innerWidth < 768) {
-    result.scrollIntoView({ behavior: "smooth", block: "end" });
+  if (result) {
+    result.classList.remove("hidden");
+    result.classList.add("fade-in");
+
+    if (window.innerWidth < 768) {
+      result.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }
 }
-/* -------------------------------------------------
- * SHOW WARNING LEVEL (from Google Sheet)
- * ------------------------------------------------- */
-document.addEventListener("DOMContentLoaded", () => {
-    const box = document.getElementById("warning-status-box");
-    const text = document.getElementById("warning-level-text");
-
-    // ต้องรอ fetchData เสร็จก่อน
-    const checkInterval = setInterval(() => {
-        if (!window.sheetSummary) return;
-
-        const level = window.sheetSummary.level;
-        const paid = window.sheetSummary.amount_paid;
-
-        clearInterval(checkInterval);
-
-        if (!box || !text) return;
-
-        box.classList.remove("hidden");
-
-        if (level === "critical" || level === "high") {
-            box.classList.add("warn-red");
-            text.innerText = `⚠ ค่าไฟสูงกว่างบ! ปัจจุบันจ่ายแล้ว ${paid} บาท`;
-        } else if (level === "warning") {
-            box.classList.add("warn-yellow");
-            text.innerText = `⚠ ใกล้ถึงงบแล้ว เหลืองบอีก ${1500 - paid} บาท`;
-        } else {
-            box.classList.add("warn-green");
-            text.innerText = `✓ ค่าไฟอยู่ในเกณฑ์ปกติ — จ่ายแล้ว ${paid} บาท`;
-        }
-    }, 200);
-});
