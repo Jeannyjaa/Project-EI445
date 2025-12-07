@@ -424,3 +424,35 @@ function showPlanDetail(planType) {
     result.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 }
+/* -------------------------------------------------
+ * SHOW WARNING LEVEL (from Google Sheet)
+ * ------------------------------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
+    const box = document.getElementById("warning-status-box");
+    const text = document.getElementById("warning-level-text");
+
+    // ต้องรอ fetchData เสร็จก่อน
+    const checkInterval = setInterval(() => {
+        if (!window.sheetSummary) return;
+
+        const level = window.sheetSummary.level;
+        const paid = window.sheetSummary.amount_paid;
+
+        clearInterval(checkInterval);
+
+        if (!box || !text) return;
+
+        box.classList.remove("hidden");
+
+        if (level === "critical" || level === "high") {
+            box.classList.add("warn-red");
+            text.innerText = `⚠ ค่าไฟสูงกว่างบ! ปัจจุบันจ่ายแล้ว ${paid} บาท`;
+        } else if (level === "warning") {
+            box.classList.add("warn-yellow");
+            text.innerText = `⚠ ใกล้ถึงงบแล้ว เหลืองบอีก ${1500 - paid} บาท`;
+        } else {
+            box.classList.add("warn-green");
+            text.innerText = `✓ ค่าไฟอยู่ในเกณฑ์ปกติ — จ่ายแล้ว ${paid} บาท`;
+        }
+    }, 200);
+});
