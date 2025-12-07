@@ -288,11 +288,11 @@ body {
     position: relative;
 }
 
-.plan-item input:checked+.radio-mark {
+.plan-item input:checked + .radio-mark {
     border-color: var(--text-main);
 }
 
-.plan-item input:checked+.radio-mark::after {
+.plan-item input:checked + .radio-mark::after {
     content: '';
     width: 12px;
     height: 12px;
@@ -558,7 +558,10 @@ body {
     }
 }
 
-/* --- Warning Level Color Box --- */
+/* --- Status + Warning Level Color Box --- */
+
+/* ใช้ร่วมกันทั้งหน้า index (status-card) และ warning.html (warning-status-box) */
+#status-card,
 #warning-status-box {
     padding: 16px;
     border-radius: 12px;
@@ -566,6 +569,19 @@ body {
     font-size: 15px;
     font-weight: 500;
     box-shadow: var(--shadow);
+}
+
+/* หัวข้อในกล่องสถานะ (เช่น "ปกติ", "ระดับสูง") */
+.status-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* ข้อความบรรยายในกล่องสถานะ */
+.status-desc {
+    font-size: 14px;
+    color: var(--text-main);
 }
 
 /* วิกฤต / สูง */
