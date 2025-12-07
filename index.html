@@ -28,13 +28,18 @@
             <h1>Bill-shock early warning</h1>
         </header>
 
-        <!-- 1. การ์ดแจ้งเตือน (ผูกกับ level จากชีท) -->
-        <!-- script.js จะเรียก renderWarningStatus(level) มาเปลี่ยนข้อความ + สีที่นี่ -->
-        <a href="warning.html" class="card warning-card" id="warning-status-box">
+        <!-- ✅ กล่องสถานะรวม (เขียว/เหลือง/แดง) อิงจาก level ในชีท -->
+        <div id="status-card" class="card hidden">
+            <div id="status-title" class="status-title">กำลังโหลดสถานะ...</div>
+            <div id="status-desc" class="status-desc"></div>
+        </div>
+
+        <!-- 🔴 การ์ด Warning (ลิงก์ไปหน้า warning) – ข้อความด้านในจะอัปเดตตาม level -->
+        <a href="warning.html" class="card warning-card" id="main-warning-card">
             <div class="warning-content">
                 <div class="warning-title">Warning</div>
-                <div class="warning-desc" id="warning-level-text">
-                    กำลังโหลดสถานะ...
+                <div class="warning-desc" id="main-warning-desc">
+                    กำลังโหลดสถานะค่าไฟ...
                 </div>
             </div>
             <div class="action-link">
