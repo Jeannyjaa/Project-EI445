@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakdown</title>
+
+    <!-- ฟอนต์หลัก -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- ไอคอน -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="sub-header">
+            <a href="index.html" class="back-btn"><i class="ph ph-arrow-left"></i></a>
+            <h1>สัดส่วนตามช่วงเวลา</h1>
+        </header>
+
+        <div class="split-layout">
+            <!-- ส่วนกราฟ -->
+            <div class="card chart-card center-content">
+                <div class="chart-container" style="height: 300px;">
+                    <!-- ใช้กับ script.js -->
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+
+            <!-- ส่วนรายละเอียด (Legend) -->
+            <div class="info-panel" style="display: flex; flex-direction: column; justify-content: center;">
+                <div class="section-title" style="margin-top: 0;">รายละเอียด</div>
+                <div class="card">
+                    <div class="chart-legend" style="flex-direction: column; align-items: flex-start;">
+
+                        <!-- กลางวัน -->
+                        <div class="legend-item">
+                            <span class="dot day"></span>
+                            <!-- script.js จะมาเขียนข้อความให้ -->
+                            <span style="font-size: 16px;" id="legend-day">กำลังคำนวณ...</span>
+                        </div>
+
+                        <!-- กลางคืน -->
+                        <div class="legend-item">
+                            <span class="dot night"></span>
+                            <!-- script.js จะมาเขียนข้อความให้ -->
+                            <span style="font-size: 16px;" id="legend-night">กำลังคำนวณ...</span>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts: โหลด Chart.js ก่อน แล้วค่อย script.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

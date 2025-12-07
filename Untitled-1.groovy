@@ -1,4 +1,3 @@
-# Project-EI445
 // ================== CONFIG ==================
 const DATA_URL = "dataset.json"; // ชื่อไฟล์ JSON ที่เก็บ data set
 const BUDGET_LIMIT = 1500;       // งบประมาณค่าไฟต่อเดือน (ปรับได้)

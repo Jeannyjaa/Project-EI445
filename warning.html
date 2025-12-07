@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warning Detail</title>
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="sub-header">
+            <a href="index.html" class="back-btn">
+                <i class="ph ph-arrow-left"></i>
+            </a>
+            <h1>การคาดการณ์</h1>
+        </header>
+
+        <!-- Layout แบ่งซ้ายขวา -->
+        <div class="split-layout">
+
+            <!-- ซ้าย: กราฟแนวโน้ม (Real Data) -->
+            <div class="card chart-card">
+                <div class="chart-container">
+                    <!-- ใช้กับ renderWarningPage ใน script.js -->
+                    <canvas id="warningChart"></canvas>
+                </div>
+            </div>
+
+            <!-- ขวา: ส่วนจัดการแผน (Interactive Flow) -->
+            <div class="action-panel">
+
+                <!-- Step 1: ปุ่มเริ่มต้น -->
+                <div id="step-start" class="action-section">
+                    <div class="section-title" style="margin-top: 0;">จัดการค่าไฟเกินงบ</div>
+                    <button class="main-btn" onclick="showPlanList()">
+                        เลือกแผนลดค่าไฟ
+                    </button>
+                </div>
+
+                <!-- Step 2: รายการแผน (เริ่มต้นซ่อน) -->
+                <div id="step-selection" class="hidden">
+                    <div class="section-title" style="margin-top: 0;">เลือกแผนที่ต้องการ</div>
+
+                    <div class="plan-list">
+                        <!-- แผน 1 -->
+                        <label class="plan-item" onclick="showPlanDetail('lite')">
+                            <div class="plan-info">
+                                <span class="plan-name">1. แผน Lite</span>
+                                <span class="plan-desc">ลดเล็กน้อย (ปิดไฟดวงที่ไม่ใช้)</span>
+                            </div>
+                            <input type="radio" name="plan" value="1">
+                            <span class="radio-mark"></span>
+                        </label>
+
+                        <!-- แผน 2 -->
+                        <label class="plan-item" onclick="showPlanDetail('balance')">
+                            <div class="plan-info">
+                                <span class="plan-name">2. แผน Balance</span>
+                                <span class="plan-desc">แนะนำ: ปรับแอร์ 26°C</span>
+                            </div>
+                            <input type="radio" name="plan" value="2">
+                            <span class="radio-mark"></span>
+                        </label>
+
+                        <!-- แผน 3 -->
+                        <label class="plan-item" onclick="showPlanDetail('max')">
+                            <div class="plan-info">
+                                <span class="plan-name">3. แผน Max</span>
+                                <span class="plan-desc">ประหยัดสูงสุด (ปิดเครื่องใช้ไฟฟ้าหนัก)</span>
+                            </div>
+                            <input type="radio" name="plan" value="3">
+                            <span class="radio-mark"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Step 3: ผลลัพธ์ (เริ่มต้นซ่อน) -->
+                <div id="step-result" class="hidden">
+                    <div class="result-box">
+                        <div class="result-icon">
+                            <i class="ph ph-check-circle"></i>
+                        </div>
+                        <h3 id="result-title">ชื่อแผน</h3>
+                        <p id="result-desc">รายละเอียดแผน...</p>
+                        <div class="result-saving">
+                            คาดว่าจะลดได้: <span id="result-amount">0 บาท</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- End action-panel -->
+
+        </div> <!-- End split-layout -->
+
+    </div>
+
+    <!-- Scripts: โหลด Chart.js ก่อน แล้วค่อย script.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+
+</body>
+
+</html>

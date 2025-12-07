@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bill-Shock Early Warning Dashboard</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f5f7;
+      color: #111827;
+      min-height: 100vh;
+      padding: 20px;
+      line-height: 1.5;
+      transition: background .25s ease, color .25s ease;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    button { font-family: inherit; cursor: pointer; }
+
+    .header {
+      background: #ffffff;
+      padding: 20px 22px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, .08);
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title-block h1 { font-size: 24px; font-weight: 600; }
+
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .mode-text {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .back-btn,
+    .theme-toggle {
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      color: #111827;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: .2s;
+      white-space: nowrap;
+    }
+
+    .back-btn span.icon {
+      font-size: 16px;
+      transform: translateY(-1px);
+    }
+
+    .back-btn:hover {
+      background: #111827;
+      border-color: #111827;
+      color: #fff;
+    }
+
+    .theme-toggle { font-size: 12px; }
+
+    .theme-toggle:hover { background: #e5e7eb; }
+
+    .status-banner {
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      font-size: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .7);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .status-normal { background: #16a34a; }
+    .status-mild { background: #ea580c; }
+    .status-moderate { background: #c2410c; }
+    .status-severe { background: #b91c1c; }
+
+    /* MINI CARDS */
+    .mini-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .mini-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, .08);
+      border: 1px solid #e5e7eb;
+      cursor: pointer;
+      transition: .18s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mini-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+    }
+
+    .m-header { display: flex; gap: 8px; align-items: center; }
+
+    .m-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .m-icon-spent { background: #eff6ff; color: #1d4ed8; }
+    .m-icon-projected { background: #fef3c7; color: #92400e; }
+    .m-icon-budget { background: #ecfdf3; color: #15803d; }
+    .m-icon-avg { background: #f5f3ff; color: #5b21b6; }
+
+    .m-title {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .m-value { font-size: 20px; font-weight: 600; color: #111827; }
+
+    .m-foot {
+      font-size: 11px;
+      color: #9ca3af;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .m-foot span.icon { font-size: 14px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, .06);
+      border: 1px solid #e5e7eb;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: .07em;
+      margin-bottom: 6px;
+    }
+
+    .stat-value { font-size: 26px; font-weight: 600; }
+
+    .stat-change {
+      font-size: 13px;
+      margin-top: 4px;
+      color: #6b7280;
+    }
+
+    .positive { color: #16a34a; }
+    .negative { color: #b91c1c; }
+
+    .progress-card { margin-bottom: 18px; }
+
+    .progress-bar {
+      height: 24px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #fb923c, #facc15);
+      color: #111827;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      transition: width .7s;
+      white-space: nowrap;
+    }
+
+    .progress-footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .chart-card h3 {
+      font-size: 15px;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .action-plan h3,
+    .insight-card h3 {
+      font-size: 15px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .action-item {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      border-left: 3px solid #fb923c;
+      font-size: 14px;
+      color: #111827;
+    }
+
+    #planSummary {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #fff7ed;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #7c2d12;
+      border: 1px solid #fed7aa;
+    }
+
+    .insight-text {
+      font-size: 14px;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .insight-list {
+      list-style: disc;
+      padding-left: 18px;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .insight-list li { margin-bottom: 4px; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      background: rgba(15, 23, 42, .65);
+      z-index: 50;
+    }
+
+    .modal {
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+      width: 90%;
+      max-width: 420px;
+      padding: 20px 20px 14px;
+      animation: pop .25s ease;
+    }
+
+    @keyframes pop {
+      from { transform: scale(.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal h2 { font-size: 18px; margin-bottom: 4px; font-weight: 600; }
+
+    .modal p {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 14px;
+    }
+
+    .option-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+
+    .option-btn {
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #111827;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: .16s ease;
+    }
+
+    .option-btn .label { font-weight: 500; }
+
+    .option-btn .desc {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+      display: block;
+    }
+
+    .option-btn:hover {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+    }
+
+    .option-btn:hover .desc { color: #e5e7eb; }
+
+    .option-arrow { font-size: 16px; }
+
+    .modal-footer {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: right;
+    }
+
+    /* POPUP รายละเอียด MINI CARD */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .55);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 60;
+    }
+
+    .detail-box {
+      background: #ffffff;
+      width: 90%;
+      max-width: 420px;
+      border-radius: 16px;
+      padding: 18px 18px 14px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .6);
+      animation: pop .22s ease;
+    }
+
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .detail-title { font-size: 16px; font-weight: 600; }
+
+    .detail-chip {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #6b7280;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    .detail-close {
+      border: none;
+      background: transparent;
+      font-size: 22px;
+      cursor: pointer;
+      color: #6b7280;
+    }
+
+    .detail-body { font-size: 13px; color: #374151; }
+
+    .detail-body p { margin-bottom: 6px; }
+
+    .detail-body ul { margin-top: 4px; padding-left: 18px; }
+
+    .detail-body li { margin-bottom: 3px; }
+
+    #main {
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .25s ease, transform .25s ease;
+    }
+
+    #main.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* NIGHT MODE */
+    body.theme-night {
+      background: #0b0f19;
+      color: #e5e7eb;
+    }
+
+    body.theme-night .header {
+      background: #020617;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .6);
+      border: 1px solid #111827;
+    }
+
+    body.theme-night .card,
+    body.theme-night .modal,
+    body.theme-night .option-btn,
+    body.theme-night .mini-card,
+    body.theme-night .detail-box {
+      background: #020617;
+      border-color: #1f2937;
+      color: #e5e7eb;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .6);
+    }
+
+    body.theme-night .stat-label,
+    body.theme-night .stat-change,
+    body.theme-night .subtitle,
+    body.theme-night .mode-text,
+    body.theme-night .modal p {
+      color: #9ca3af;
+    }
+
+    body.theme-night .status-banner {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .7);
+    }
+
+    body.theme-night .progress-bar {
+      background: #020617;
+      border-color: #1f2937;
+    }
+
+    body.theme-night .action-item {
+      background: #020617;
+      border-color: #fb923c;
+      color: #e5e7eb;
+    }
+
+    body.theme-night .insight-text,
+    body.theme-night .insight-list li {
+      color: #e5e7eb;
+    }
+
+    body.theme-night .back-btn,
+    body.theme-night .theme-toggle {
+      background: #020617;
+      border-color: #374151;
+      color: #e5e7eb;
+    }
+
+    body.theme-night .back-btn:hover {
+      background: #e5e7eb;
+      color: #020617;
+      border-color: #e5e7eb;
+    }
+
+    body.theme-night .theme-toggle:hover { background: #111827; }
+
+    body.theme-night .detail-chip {
+      background: #111827;
+      color: #9ca3af;
+    }
+
+    body.theme-night #planSummary {
+      background: #451a03;
+      color: #fed7aa;
+      border-color: #9a3412;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container" id="main">
+    <header class="header">
+      <div class="header-top">
+        <div class="title-block">
+          <h1>Bill-Shock Early Warning</h1>
+          <p class="subtitle">
+            จับสัญญาณ “ค่าไฟกำลังจะบาน” จากข้อมูลมิเตอร์รายชั่วโมง / ราย 15 นาที แล้วประมาณการทั้งเดือนให้แบบเรียลไทม์
+          </p>
+          <p class="mode-text" id="modeText">
+            โหมด: กลางวัน (เน้นอ่านง่ายในห้องเรียน /ออฟฟิศ)
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="back-btn" onclick="history.back()">
+            <span class="icon">←</span>
+            กลับหน้าเดิม
+          </button>
+          <button class="theme-toggle" id="themeToggle">
+            สลับโหมดกลางวัน / กลางคืน
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- แบนเนอร์สถานะ -->
+    <section id="statusBanner" class="status-banner status-normal">
+      <div>
+        <div class="status-badge" id="statusBadge">NORMAL</div>
+        <div id="statusText">
+          ค่าไฟทั้งเดือนคาดว่าจะอยู่ในงบ ยังไม่มีสัญญาณ Bill-Shock
+        </div>
+      </div>
+      <div style="font-size:13px;opacity:.9;" id="statusExtra">
+        โปรเจกต์ตัวอย่าง: ใช้ข้อมูลจาก Google Sheets / n8n แทนค่าจริงในอนาคต
+      </div>
+    </section>
+
+    <!-- MINI CARDS -->
+    <section class="mini-card-grid">
+      <div class="mini-card" data-type="spent">
+        <div class="m-header">
+          <div class="m-icon m-icon-spent">ใช้</div>
+          <div>
+            <div class="m-title">ค่าไฟที่ใช้แล้ว</div>
+            <div class="m-value" id="spentValue">– บาท</div>
+          </div>
+        </div>
+        <div class="m-foot">
+          <span id="spentFoot">อัปเดตล่าสุด -</span>
+          <span class="icon">⋯</span>
+        </div>
+      </div>
+
+      <div class="mini-card" data-type="projected">
+        <div class="m-header">
+          <div class="m-icon m-icon-projected">คาด</div>
+          <div>
+            <div class="m-title">คาดการณ์ทั้งเดือน</div>
+            <div class="m-value" id="projectedValue">– บาท</div>
+          </div>
+        </div>
+        <div class="m-foot">
+          <span id="projectedFoot">Projection = Trend ตอนนี้</span>
+          <span class="icon">📈</span>
+        </div>
+      </div>
+
+      <div class="mini-card" data-type="budget">
+        <div class="m-header">
+          <div class="m-icon m-icon-budget">งบ</div>
+          <div>
+            <div class="m-title">งบค่าไฟเดือนนี้</div>
+            <div class="m-value" id="budgetValue">– บาท</div>
+          </div>
+        </div>
+        <div class="m-foot">
+          <span id="budgetFoot">ตั้งงบจากค่าเฉลี่ย 3 เดือน</span>
+          <span class="icon">🎯</span>
+        </div>
+      </div>
+
+      <div class="mini-card" data-type="avg">
+        <div class="m-header">
+          <div class="m-icon m-icon-avg">เฉลี่ย</div>
+          <div>
+            <div class="m-title">ค่าเฉลี่ย 3 เดือนหลัง</div>
+            <div class="m-value" id="avgValue">– บาท</div>
+          </div>
+        </div>
+        <div class="m-foot">
+          <span id="avgFoot">ใช้เทียบเป็น baseline</span>
+          <span class="icon">🧮</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="card progress-card">
+      <div class="stat-label">สัดส่วนการใช้ไฟเทียบกับงบเดือนนี้</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:5%;">
+          กำลังคำนวณ...
+        </div>
+      </div>
+      <div class="progress-footer">
+        <span id="progressLabelLeft">0% ของงบ</span>
+        <span id="progressLabelRight">เป้า: ไม่เกิน 100%</span>
+      </div>
+    </section>
+
+    <!-- CHARTS -->
+    <section class="charts-grid">
+      <div class="card chart-card">
+        <h3>แนวโน้มการใช้ไฟรายวัน (kWh)</h3>
+        <canvas id="usageTrendChart" height="140"></canvas>
+      </div>
+      <div class="card chart-card">
+        <h3>สัดส่วนค่าไฟตามช่วงเวลา (กลางวัน / กลางคืน)</h3>
+        <canvas id="costBreakdownChart" height="140"></canvas>
+      </div>
+    </section>
+
+    <!-- ACTION & INSIGHT -->
+    <section class="stats-grid">
+      <div class="card action-plan">
+        <h3>แผนลดโหลด 3 ระดับ (Lite / Balance / Max)</h3>
+        <div class="action-item">
+          เลือกระดับแผนเพื่อลดการใช้ไฟให้กลับมาอยู่ในงบ โดยเน้น “อะไรที่ปิดได้ก่อนโดยไม่กระทบชีวิตมาก”
+        </div>
+        <button class="back-btn" id="openPlansButton">
+          เลือกแผนลดโหลด
+        </button>
+        <div id="planSummary">
+          ยังไม่ได้เลือกแผน ระบบจะแนะนำตามระดับความเสี่ยงอัตโนมัติ
+        </div>
+      </div>
+
+      <div class="card insight-card">
+        <h3>Insight จากข้อมูลล่าสุด</h3>
+        <p class="insight-text" id="insightMain">
+          ระบบกำลังประมวลผลจากการใช้ไฟในช่วงครึ่งเดือนแรก...
+        </p>
+        <ul class="insight-list" id="insightList">
+          <!-- เติมจาก JS -->
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL เลือกแผนลดโหลด -->
+  <div class="modal-overlay" id="planModal">
+    <div class="modal">
+      <h2>เลือกแผนลดโหลด</h2>
+      <p>เลือกระดับ “บีบค่าไฟ” ให้เหมาะกับสถานการณ์ของคุณในตอนนี้</p>
+
+      <div class="option-list">
+        <button class="option-btn" data-level="lite">
+          <div>
+            <span class="label">Lite – ตัดของฟุ่มเฟือยเบา ๆ</span>
+            <span class="desc">ปิดไฟ / ปลั๊กส่วนที่ไม่จำเป็น, ตั้งแอร์ +1°C</span>
+          </div>
+          <span class="option-arrow">›</span>
+        </button>
+
+        <button class="option-btn" data-level="balance">
+          <div>
+            <span class="label">Balance – เอาจริงแต่ยังสบาย</span>
+            <span class="desc">จัดตารางใช้เครื่องใช้ไฟฟ้า, ลดใช้ช่วงพีก</span>
+          </div>
+          <span class="option-arrow">›</span>
+        </button>
+
+        <button class="option-btn" data-level="max">
+          <div>
+            <span class="label">Max – โหมดเซฟจัดเต็ม</span>
+            <span class="desc">ปิดอุปกรณ์กินไฟสูงแทบทั้งหมด, ใช้แค่จำเป็นจริง ๆ</span>
+          </div>
+          <span class="option-arrow">›</span>
+        </button>
+      </div>
+
+      <div class="modal-footer">
+        * ในเวอร์ชันจริง ระบบจะคำนวณผลกระทบต่อบิลให้แบบอัตโนมัติ
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL OVERLAY -->
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-box">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title" id="detailTitle">รายละเอียด</div>
+          <div class="detail-chip" id="detailChip">จากการ์ดสรุป</div>
+        </div>
+        <button class="detail-close" id="detailCloseBtn">&times;</button>
+      </div>
+      <div class="detail-body" id="detailBody">
+        <!-- เติมจาก JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwoqZz-CPgv27QHbxd7KDQikGjQ-VNPUkjN9WSsPPD83agqJEykhzqXGDFl2ThAEYIAPw/exec";
+    const BUDGET = 1500;      // งบเดือนนี้ (ปรับได้)
+    const AVG_3M = 1400;      // ค่าเฉลี่ย 3 เดือน (ตัวอย่าง)
+
+    async function fetchData() {
+      const res = await fetch(API_URL + "?t=" + Date.now());
+      if (!res.ok) throw new Error("Network error");
+      return await res.json();
+    }
+
+    function isDayHour(hour) {
+      return hour >= 9 && hour < 22; // กลางวัน
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const mainEl = document.getElementById("main");
+      mainEl.classList.add("show");
+
+      const spentValueEl = document.getElementById("spentValue");
+      const projectedValueEl = document.getElementById("projectedValue");
+      const budgetValueEl = document.getElementById("budgetValue");
+      const avgValueEl = document.getElementById("avgValue");
+
+      const spentFootEl = document.getElementById("spentFoot");
+      const projectedFootEl = document.getElementById("projectedFoot");
+      const budgetFootEl = document.getElementById("budgetFoot");
+      const avgFootEl = document.getElementById("avgFoot");
+
+      const statusBanner = document.getElementById("statusBanner");
+      const statusBadge = document.getElementById("statusBadge");
+      const statusText = document.getElementById("statusText");
+      const statusExtra = document.getElementById("statusExtra");
+
+      const progressFill = document.getElementById("progressFill");
+      const progressLabelLeft = document.getElementById("progressLabelLeft");
+      const progressLabelRight = document.getElementById("progressLabelRight");
+
+      const usageCtx = document.getElementById("usageTrendChart").getContext("2d");
+      const costCtx = document.getElementById("costBreakdownChart").getContext("2d");
+
+      const insightMain = document.getElementById("insightMain");
+      const insightList = document.getElementById("insightList");
+
+      try {
+        const data = await fetchData();
+        const usage = (data.usage || []).slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        if (usage.length === 0) {
+          spentValueEl.textContent = "ไม่มีข้อมูล";
+          return;
+        }
+
+        // ---- ใช้ timestamp ตัวสุดท้ายเป็น "วันนี้" ----
+        const lastTs = new Date(usage[usage.length - 1].timestamp);
+        const dayOfMonth = lastTs.getDate();
+        const daysInMonth = new Date(lastTs.getFullYear(), lastTs.getMonth() + 1, 0).getDate();
+
+        // ---- ยอดค่าไฟที่ใช้แล้ว ----
+        const spentSoFar = usage.reduce((sum, row) => sum + Number(row.cost_baht || 0), 0);
+
+        // ---- คาดการณ์ทั้งเดือนจาก trend ----
+        const projected = Math.round((spentSoFar / dayOfMonth) * daysInMonth);
+
+        // ---- เปอร์เซ็นต์เทียบงบ ----
+        let usagePct = (projected / BUDGET) * 100;
+        if (usagePct > 180) usagePct = 180;
+
+        // MINI CARDS
+        spentValueEl.textContent = spentSoFar.toLocaleString("th-TH") + " ฿";
+        projectedValueEl.textContent = projected.toLocaleString("th-TH") + " ฿";
+        budgetValueEl.textContent = BUDGET.toLocaleString("th-TH") + " ฿";
+        avgValueEl.textContent = AVG_3M.toLocaleString("th-TH") + " ฿";
+
+        spentFootEl.textContent = `ข้อมูลถึงวันที่ ${dayOfMonth}/${lastTs.getMonth() + 1}`;
+        projectedFootEl.textContent = `คาดการณ์จากการใช้เฉลี่ยวันละ ${(spentSoFar / dayOfMonth).toFixed(1)} ฿`;
+        budgetFootEl.textContent = `ตั้งงบ +10% จากค่าเฉลี่ย 3 เดือน (${AVG_3M.toLocaleString("th-TH")} ฿)`;
+        avgFootEl.textContent = "เอาไว้เทียบดูว่าช่วงนี้ใช้มากกว่าปกติแค่ไหน";
+
+        // STATUS BANNER
+        function setStatus(pct) {
+          statusBanner.classList.remove("status-normal", "status-mild", "status-moderate", "status-severe");
+
+          if (pct < 80) {
+            statusBanner.classList.add("status-normal");
+            statusBadge.textContent = "NORMAL";
+            statusText.textContent = "คาดว่าค่าไฟจะต่ำกว่างบพอสมควร ยังไม่มีความเสี่ยง Bill-Shock";
+            statusExtra.textContent = "โฟกัสที่การรักษาพฤติกรรมดี ๆ ตอนนี้ให้ต่อเนื่องไปทั้งเดือน";
+          } else if (pct < 100) {
+            statusBanner.classList.add("status-mild");
+            statusBadge.textContent = "WATCH";
+            statusText.textContent = "แนวโน้มค่าไฟเริ่มเข้าใกล้งบที่ตั้งไว้ ควรเริ่มสังเกตการใช้ไฟช่วงพีก";
+            statusExtra.textContent = "ปรับเล็กน้อย เช่น ตั้งแอร์ +1°C / ปิดปลั๊กที่ไม่ใช้ จะช่วยได้มาก";
+          } else if (pct < 120) {
+            statusBanner.classList.add("status-moderate");
+            statusBadge.textContent = "ALERT";
+            statusText.textContent = "คาดว่าค่าไฟจะเกินงบ หากไม่เปลี่ยนพฤติกรรมอาจเกิด Bill-Shock";
+            statusExtra.textContent = "ลองกดเลือกแผน ‘Balance’ เพื่อลดการใช้ไฟในช่วงพีกก่อนเป็นอันดับแรก";
+          } else {
+            statusBanner.classList.add("status-severe");
+            statusBadge.textContent = "CRITICAL";
+            statusText.textContent = "ค่าไฟคาดว่าจะทะลุงบเยอะมาก เสี่ยง Bill-Shock สูง";
+            statusExtra.textContent = "ควรเข้าสู่โหมด ‘Max’ ปิดอุปกรณ์กินไฟหนัก ๆ และเลื่อนใช้งานที่ไม่จำเป็น";
+          }
+        }
+        setStatus(usagePct);
+
+        // PROGRESS BAR
+        progressFill.style.width = Math.min(usagePct, 100) + "%";
+        progressFill.textContent = `${usagePct.toFixed(0)}% ของงบคาดการณ์`;
+        progressLabelLeft.textContent =
+          `ใช้ไปแล้ว ${spentSoFar.toLocaleString("th-TH")} ฿ จากงบ ${BUDGET.toLocaleString("th-TH")} ฿`;
+        progressLabelRight.textContent =
+          projected > BUDGET
+            ? `คาดว่าจะเกินงบประมาณ ${(projected - BUDGET).toLocaleString("th-TH")} ฿`
+            : `คาดว่าจะเหลืองบประมาณ ${(BUDGET - projected).toLocaleString("th-TH")} ฿`;
+
+        // CHART: Usage Trend (รวม kWh เป็นรายวัน)
+        const dailyMap = new Map();
+        usage.forEach(row => {
+          const d = new Date(row.timestamp);
+          const day = d.getDate();
+          const kwh = Number(row.kWh_usage || row.kwh_usage || 0);
+          dailyMap.set(day, (dailyMap.get(day) || 0) + (isNaN(kwh) ? 0 : kwh));
+        });
+        const labelsDays = Array.from(dailyMap.keys()).sort((a, b) => a - b);
+        const kWhPerDay = labelsDays.map(d => dailyMap.get(d));
+
+        new Chart(usageCtx, {
+          type: "line",
+          data: {
+            labels: labelsDays,
+            datasets: [{
+              label: "การใช้ไฟต่อวัน (kWh)",
+              data: kWhPerDay,
+              tension: 0.3,
+              fill: false
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { title: { display: true, text: "วันที่ของเดือน" } },
+              y: { title: { display: true, text: "kWh/วัน" }, beginAtZero: true }
+            }
+          }
+        });
+
+        // CHART: Cost Breakdown (กลางวัน / กลางคืน)
+        let dayCost = 0;
+        let nightCost = 0;
+        usage.forEach(row => {
+          const d = new Date(row.timestamp);
+          const cost = Number(row.cost_baht || 0);
+          if (isNaN(cost)) return;
+          if (isDayHour(d.getHours())) {
+            dayCost += cost;
+          } else {
+            nightCost += cost;
+          }
+        });
+
+        new Chart(costCtx, {
+          type: "doughnut",
+          data: {
+            labels: ["ช่วงกลางวัน", "ช่วงกลางคืน"],
+            datasets: [{ data: [dayCost, nightCost] }]
+          },
+          options: {
+            plugins: { legend: { position: "bottom" } }
+          }
+        });
+
+        // INSIGHT LIST
+        insightList.innerHTML = "";
+        const diffFromAvg = projected - AVG_3M;
+        if (diffFromAvg > 0) {
+          insightMain.textContent =
+            "แนวโน้มค่าไฟเดือนนี้สูงกว่าค่าเฉลี่ยที่ผ่านมาเล็กน้อย ควรเริ่มจัดการก่อนจะสายเกินไป.";
+          const li1 = document.createElement("li");
+          li1.textContent = `ถ้าไม่ปรับพฤติกรรม ค่าไฟทั้งเดือนอาจสูงกว่าค่าเฉลี่ยประมาณ ${diffFromAvg.toLocaleString("th-TH")} ฿`;
+          const li2 = document.createElement("li");
+          li2.textContent = "ลองย้ายการใช้เครื่องใช้ไฟฟ้าหนัก ๆ ไปช่วงกลางคืน (ถ้าโครงสร้างค่าไฟเอื้อ)";
+          const li3 = document.createElement("li");
+          li3.textContent = "ใช้ข้อมูลนี้ไปทำ Early Warning บน LINE / Email ผ่าน n8n ได้เลย";
+          insightList.append(li1, li2, li3);
+        } else {
+          insightMain.textContent =
+            "ตอนนี้แนวโน้มค่าไฟยังต่ำกว่าค่าเฉลี่ยเดิม ถือว่าอยู่ในโซนค่อนข้างปลอดภัย.";
+          const li1 = document.createElement("li");
+          li1.textContent = "รักษาพฤติกรรมการใช้ไฟปัจจุบันไว้ให้ได้ทั้งเดือน จะช่วยลดบิลไฟระยะยาว";
+          const li2 = document.createElement("li");
+          li2.textContent = "อาจตั้ง threshold แจ้งเตือนที่ 90–95% ของงบเผื่อไว้ก่อน";
+          insightList.append(li1, li2);
+        }
+
+      } catch (err) {
+        console.error(err);
+        progressFill.textContent = "โหลดข้อมูลไม่สำเร็จ";
+      }
+
+      // PLAN MODAL
+      const planModal = document.getElementById("planModal");
+      const openPlansButton = document.getElementById("openPlansButton");
+      const planSummary = document.getElementById("planSummary");
+
+      openPlansButton.addEventListener("click", () => {
+        planModal.style.display = "flex";
+      });
+
+      planModal.addEventListener("click", (e) => {
+        if (e.target === planModal) planModal.style.display = "none";
+      });
+
+      document.querySelectorAll(".option-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const level = btn.dataset.level;
+          if (level === "lite") {
+            planSummary.textContent =
+              "แผน Lite: ปิดอุปกรณ์/ปลั๊กที่ไม่จำเป็น, ตั้งแอร์ +1°C, ปิดไฟทุกครั้งที่ออกจากห้อง – เหมาะเมื่อแนวโน้มยังไม่เกินงบมาก.";
+          } else if (level === "balance") {
+            planSummary.textContent =
+              "แผน Balance: ย้ายการใช้เครื่องใช้ไฟฟ้าหนักไปช่วงเวลาที่ค่าไฟถูกกว่า, จำกัดเวลาเปิดแอร์/เครื่องทำน้ำอุ่น, ใช้โหมดประหยัดพลังงาน.";
+          } else if (level === "max") {
+            planSummary.textContent =
+              "แผน Max: ปิดหรือเลื่อนใช้งานอุปกรณ์กินไฟหนัก (เช่น เครื่องอบผ้า, เตาอบไฟฟ้า, แอร์หลายเครื่อง), ใช้เฉพาะอุปกรณ์ที่จำเป็นจริง ๆ เพื่อดึงค่าไฟลงให้ต่ำกว่างบ.";
+          }
+          planModal.style.display = "none";
+        });
+      });
+
+      // DETAIL POPUP
+      const detailOverlay = document.getElementById("detailOverlay");
+      const detailTitle = document.getElementById("detailTitle");
+      const detailChip = document.getElementById("detailChip");
+      const detailBody = document.getElementById("detailBody");
+      const detailCloseBtn = document.getElementById("detailCloseBtn");
+
+      function openDetail(type) {
+        let title = "";
+        let chip = "";
+        let html = "";
+
+        if (type === "spent") {
+          title = "รายละเอียดค่าไฟที่ใช้ไปแล้ว";
+          chip = "Real-time usage";
+          html = `
+            <p>ส่วนนี้แสดง “ยอดค่าไฟที่ใช้ไปแล้ว” ณ ตอนนี้จากข้อมูลมิเตอร์/บิลสะสมจริง.</p>
+            <ul>
+              <li>เหมาะสำหรับดูว่า “เผางบไปแล้วกี่บาท” ตั้งแต่ต้นเดือน</li>
+              <li>ใช้เป็น input ในการคำนวณ projection ทั้งเดือน</li>
+              <li>ในระบบจริงจะมาจาก Google Sheets / API ของมิเตอร์อัจฉริยะ</li>
+            </ul>
+          `;
+        } else if (type === "projected") {
+          title = "วิธีคำนวณคาดการณ์ทั้งเดือน";
+          chip = "Projection model";
+          html = `
+            <p>ตัวเลขนี้ประเมินจากค่าเฉลี่ยต่อวันจนถึงวันนี้ แล้วคูณจำนวนวันทั้งเดือน.</p>
+            <ul>
+              <li>สูตรง่าย: (ยอดที่ใช้แล้ว / จำนวนวันที่ผ่านไป) × จำนวนวันทั้งเดือน</li>
+              <li>สามารถอัปเกรดเป็นโมเดล AI / Time-series forecasting ได้ในอนาคต</li>
+              <li>ใช้เพื่อดูแต่เนิ่น ๆ ว่าบิลจะ “บาน” หรือไม่ ถ้าไม่ปรับพฤติกรรม</li>
+            </ul>
+          `;
+        } else if (type === "budget") {
+          title = "การตั้งงบค่าไฟ";
+          chip = "Budget / Threshold";
+          html = `
+            <p>งบค่าไฟถูกตั้งจากค่าเฉลี่ย 3 เดือนล่าสุด + เผื่อส่วนต่างเล็กน้อย.</p>
+            <ul>
+              <li>เช่น เอาค่าเฉลี่ย 3 เดือน +10% เป็น Threshold</li>
+              <li>ถ้า projection เกินงบนี้ ระบบจะยกระดับเตือนอัตโนมัติ</li>
+              <li>สามารถปรับงบได้ตามฐานะ/ฤดูกาล เช่น ฤดูร้อนเผื่อเพิ่ม</li>
+            </ul>
+          `;
+        } else if (type === "avg") {
+          title = "ค่าเฉลี่ย 3 เดือนหลังสุด";
+          chip = "Baseline";
+          html = `
+            <p>ค่าเฉลี่ยย้อนหลังใช้เป็น “baseline” ดูว่าช่วงนี้ใช้ไฟเกินกว่าพฤติกรรมปกติแค่ไหน.</p>
+            <ul>
+              <li>ช่วยแยกได้ว่า เกิดจากพฤติกรรมใหม่ หรือแค่ราคาหน่วยไฟเพิ่ม</li>
+              <li>เมื่อรวมกับข้อมูลอุณหภูมิ/สภาพอากาศ จะได้ insight ลึกขึ้น</li>
+              <li>ในระบบจริง baseline นี้อาจมาจากหลายปีย้อนหลัง</li>
+            </ul>
+          `;
+        }
+
+        detailTitle.textContent = title;
+        detailChip.textContent = chip;
+        detailBody.innerHTML = html;
+        detailOverlay.style.display = "flex";
+      }
+
+      document.querySelectorAll(".mini-card").forEach(card => {
+        card.addEventListener("click", () => openDetail(card.dataset.type));
+      });
+
+      detailOverlay.addEventListener("click", (e) => {
+        if (e.target === detailOverlay) detailOverlay.style.display = "none";
+      });
+      detailCloseBtn.addEventListener("click", () => {
+        detailOverlay.style.display = "none";
+      });
+
+      // THEME TOGGLE
+      const themeToggle = document.getElementById("themeToggle");
+      const modeText = document.getElementById("modeText");
+
+      function applyTheme(theme) {
+        if (theme === "night") {
+          document.body.classList.add("theme-night");
+          modeText.textContent = "โหมด: กลางคืน (พื้นหลังมืด ถนอมสายตา)";
+        } else {
+          document.body.classList.remove("theme-night");
+          modeText.textContent = "โหมด: กลางวัน (เน้นอ่านง่ายในห้องเรียน /ออฟฟิศ)";
+        }
+      }
+
+      const savedTheme = localStorage.getItem("billshock-theme");
+      if (savedTheme) applyTheme(savedTheme);
+
+      themeToggle.addEventListener("click", () => {
+        const isNight = document.body.classList.toggle("theme-night");
+        const theme = isNight ? "night" : "day";
+        localStorage.setItem("billshock-theme", theme);
+        applyTheme(theme);
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Shock Early Warning</title>
+
+    <!-- Google Fonts: Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Icon Library (Phosphor Icons) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- CSS หลัก -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- App Container -->
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="main-header">
+            <h1>Bill-shock early warning</h1>
+        </header>
+
+        <!-- 1. Warning Section -->
+        <a href="warning.html" class="card warning-card">
+            <div class="warning-content">
+                <div class="warning-title">Warning</div>
+                <div class="warning-desc">สถานะค่าไฟอยู่ในเกณฑ์สูงกว่าปกติ</div>
+            </div>
+            <div class="action-link">
+                <span>รายละเอียด</span>
+                <i class="ph ph-caret-right"></i>
+            </div>
+        </a>
+
+        <!-- 2. Usage Section (Main Dashboard) -->
+        <a href="usage.html" class="card usage-card">
+            <div class="card-top">
+                <span class="label">ยอดค่าไฟที่ใช้แล้ว</span>
+                <div class="action-link">
+                    <span>รายละเอียด</span>
+                    <i class="ph ph-caret-right"></i>
+                </div>
+            </div>
+
+            <div class="amount-display">
+                <span class="currency">฿</span>
+                <!-- script.js จะเติมยอดเงินให้ -->
+                <span class="number" id="display-amount">...</span>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-info">
+                    <span>ใช้ไปแล้ว</span>
+                    <!-- script.js จะเขียนข้อความตรงนี้ -->
+                    <span id="progress-text">กำลังโหลด...</span>
+                </div>
+
+                <div class="progress-track">
+                    <!-- script.js จะปรับความกว้างให้ -->
+                    <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+                </div>
+
+                <!-- เวลาอัปเดตล่าสุด -->
+                <div id="last-update"
+                     style="margin-top: 8px; font-size: 12px; color: #888; text-align: right;">
+                    รอสักครู่...
+                </div>
+            </div>
+        </a>
+
+        <!-- 3. Services Section -->
+        <div class="section-title">บริการอื่นๆ</div>
+
+        <div class="grid-menu">
+            <!-- ปุ่มซ้าย -->
+            <a href="download.html" class="menu-item">
+                <div class="icon-box">
+                    <i class="ph ph-file-text"></i>
+                </div>
+                <span>บิลย้อนหลัง</span>
+            </a>
+
+            <!-- ปุ่มขวา -->
+            <a href="breakdown.html" class="menu-item">
+                <div class="icon-box">
+                    <i class="ph ph-chart-pie-slice"></i>
+                </div>
+                <span>สัดส่วนการใช้</span>
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Scripts: โหลด Chart.js ก่อน script.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
